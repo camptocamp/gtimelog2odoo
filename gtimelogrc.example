@@ -1,0 +1,11 @@
+[gtimelog_exporter]
+jira_url = https://jira.mydomain.com/
+tempo_api = rest/tempo-timesheets/3/
+tempo_user = my-user
+odoo_url = https://odoo.mydomain.com/
+odoo_db = awesome_db_name
+odoo_user = my-user
+
+[gtimelog_exporter:aliases]
+my-alias = ABC-42
+other-alias = XYZ-14
