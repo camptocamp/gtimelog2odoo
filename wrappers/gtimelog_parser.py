@@ -11,11 +11,19 @@ from .multi_log import MultiLog
 
 
 class GtimelogParser(object):
+
     def __init__(self, config):
         self.settings = Settings()
         self.timelog = TimeLog(self.settings.get_timelog_file(),
                                self.settings.virtual_midnight)
         self.aliases = config.get('aliases', {})
+
+    def skip_entry(self, entry):
+        if '**' in entry:
+            return True
+        if entry.strip() in ('arrive', 'arrived', 'start'):
+            return True
+        return False
 
     def get_entries(self, date_window):
         window = self.timelog.window_for(date_window.start, date_window.stop)
@@ -23,7 +31,7 @@ class GtimelogParser(object):
         worklogs = []
         attendances = []
         for start, stop, duration, tags, entry in window.all_entries():
-            if '**' in entry:
+            if self.skip_entry(entry):
                 continue
             if attendances and attendances[-1][1] == start:
                 attendances[-1] = (attendances[-1][0], stop)
