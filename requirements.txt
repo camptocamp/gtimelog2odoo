@@ -1,0 +1,7 @@
+argparse
+configparser
+erppeek
+gtimelog
+python-dateutil
+requests
+tzlocal
