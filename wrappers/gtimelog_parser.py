@@ -5,21 +5,9 @@ except ImportError:
     print('you have to install gtimelog first (pip install gtimelog)')
     raise
 
-import re
-import collections
-
 from datetime import date
 
 from .multi_log import MultiLog
-
-
-def groupby(seq, key=lambda x: x):
-    seq = list(seq)
-    indexes = collections.defaultdict(list)
-    for i, elem in enumerate(seq):
-        indexes[key(elem)].append(i)
-    for k, idxs in indexes.items():
-        yield k, (seq[i] for i in idxs)
 
 
 class GtimelogParser(object):
