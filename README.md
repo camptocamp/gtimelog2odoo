@@ -33,19 +33,21 @@ You can also use `ODOO_PASSWORD` and `TEMP_PASSWORD` environment variables to pa
 If both passwords are the same, you can use the environment variable `ALL_PASSWORD`.
 In case the flag non-interactive is set, it is mandatory to use environment variables.
 
+TIP: copy `set_passwords.example` to `set_passwords` and modify it according to your LP passwords.
+Then run it to set both passwords on the fly.
+
 ## GTimeLog Entry Format
 
 The script will parse GTimeLog entries with the following format:
 
-> [Project|Alias:] [JiraTask] LogComment [| PersonalComment]
+> [TASK|alias for a task]: description
 
 Where
 
-* Project is used solely in GTimeLog to group the entries by project
-* Alias is a task alias. It is mutually exclusive with JiraTask
-* JiraTask is a Jira task key (e.g. BSABC-42)
-* LogComment is the description of your work. It will be reported in Jira
-* PersonalComment will be stripped from the entry before processing
+* "TASK" is the card ID on JIRA, eg: "BSMNT-1"
+* "alias for a task" is an alias matching your alias configuration, eg: "mgmt" => BS-445
+* "description" is what you have done
+
 
 ### Examples
 
