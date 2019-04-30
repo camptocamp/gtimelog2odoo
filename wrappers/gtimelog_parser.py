@@ -29,7 +29,7 @@ class GtimelogParser(object):
                                self.settings.virtual_midnight)
         self.aliases = config.get('aliases', {})
 
-    def get_entries(self, date_window, consolidate=False):
+    def get_entries(self, date_window):
         window = self.timelog.window_for(date_window.start, date_window.stop)
 
         worklogs = []
@@ -67,18 +67,5 @@ class GtimelogParser(object):
         # Dangling attendance for today
         if attendances and attendances[-1][1].date() == date.today():
             attendances[-1] = (attendances[-1][0], None)
-
-        if consolidate:
-            consolidated = []
-            for day, day_logs in groupby(worklogs, key=lambda e: e.date):
-                for issue, issue_logs \
-                        in groupby(day_logs, key=lambda e: e.issue):
-                    for comment, comment_logs \
-                            in groupby(issue_logs, key=lambda e: e.comment):
-                        total = sum([l.duration for l in comment_logs])
-                        consolidated.append(
-                            MultiLog(None, issue, total, day, comment)
-                        )
-            return attendances, consolidated
 
         return attendances, worklogs
