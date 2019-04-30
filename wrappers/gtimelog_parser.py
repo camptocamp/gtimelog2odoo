@@ -28,13 +28,8 @@ class GtimelogParser(object):
         self.timelog = TimeLog(self.settings.get_timelog_file(),
                                self.settings.virtual_midnight)
         self.aliases = config.get('aliases', {})
-        self.entry_re = re.compile(
-            r"(?:(?P<project>[a-z_-]*?): )?"
-            r"(?:(?P<issue>[A-Z0-9]*?-[0-9]*?) )?"
-            r"(?P<comment>.+)"
-        )
 
-    def get_entries(self, date_window, consolidate=True):
+    def get_entries(self, date_window, consolidate=False):
         window = self.timelog.window_for(date_window.start, date_window.stop)
 
         worklogs = []
@@ -46,27 +41,28 @@ class GtimelogParser(object):
                 attendances[-1] = (attendances[-1][0], stop)
             else:
                 attendances += [(start, stop)]
-            entry = entry.split('|')[0].strip()
-            matches = self.entry_re.match(entry)
-            if matches:
-                issue = matches.group('issue')
-                if not issue:
-                    #  Issue not in entry, check for alias
-                    project = matches.group('project')
-                    if project in self.aliases:
-                        issue = self.aliases[project]
-                    else:
-                        continue
-                comment = matches.group('comment')
-                worklogs.append(MultiLog(
-                    None,
-                    issue,
-                    int(duration.total_seconds()),
-                    start.date(),
-                    comment
-                ))
-            elif entry:
-                print('Cannot parse entry "%s"' % entry)
+            try:
+                issue, description = [
+                    x.strip() for x in entry.split(':') if x.strip()
+                ]
+            except ValueError:
+                print(
+                    'Entry must be in the format `task: description`. '
+                    'Got ', entry
+                )
+                continue
+
+            # no matter what we find as `issue`:
+            # if we have an alias override it takes precedence
+            if issue in self.aliases:
+                issue = self.aliases[issue]
+            worklogs.append(MultiLog(
+                None,
+                issue,
+                int(duration.total_seconds()),
+                start.date(),
+                description
+            ))
 
         # Dangling attendance for today
         if attendances and attendances[-1][1].date() == date.today():
