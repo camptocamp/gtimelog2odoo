@@ -32,9 +32,10 @@ tz_offset = utcnow.utcoffset().total_seconds()
 
 
 class Utils:
+
     @staticmethod
     def current_weeknumber():
-        return date.today().isocalendar()[1]
+        return int(datetime.now().strftime("%W"))
 
     @staticmethod
     def current_year():
