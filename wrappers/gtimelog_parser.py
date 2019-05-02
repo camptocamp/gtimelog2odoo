@@ -39,7 +39,7 @@ class GtimelogParser(object):
                 attendances += [(start, stop)]
             try:
                 issue, description = [
-                    x.strip() for x in entry.split(':') if x.strip()
+                    x.strip() for x in entry.split(':', 1) if x.strip()
                 ]
             except ValueError:
                 print(
