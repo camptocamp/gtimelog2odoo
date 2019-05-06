@@ -52,14 +52,14 @@ Where
 ### Examples
 
 * Log work to task BSMP-42 with comment "Investigate Issue"
-  > my_project: BSMP-42 Investigate issue | this customer drives me mad
-* Log work to task aliased by `daily_alias` with comment "Daily Meeting"
-  > daily_alias: Daily Meeting
-* Log work to task BSXYZ-14 with comment "Entry without project". Entry will not be grouped in GTimeLog view
-  > BSXYZ-14 Entry without project
+  > BSMP-42: Investigate issue | this customer drives me mad
+* Log work to task aliased by `daily` with comment "Daily Meeting"
+  > daily: Daily Meeting
 
 ## Roadmap
 
+* FIX past week number handling: as of today you have to use week number -1
+* Log warnings if an entry does not match a card on JIRA
 * Check if conflicting worklogs could be updated instead of deleting and recreating them
 * Update the remaining estimate on the Jira task instead of setting it to 0
 * Improve GTimeLog entry parsing
