@@ -5,6 +5,7 @@ tempo_user = my-user
 odoo_url = https://odoo.mydomain.com/
 odoo_db = awesome_db_name
 odoo_user = my-user
+line_format = standard
 
 [gtimelog_exporter:aliases]
 my-alias = ABC-42

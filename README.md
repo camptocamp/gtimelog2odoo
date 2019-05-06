@@ -40,13 +40,23 @@ Then run it to set both passwords on the fly.
 
 The script will parse GTimeLog entries with the following format:
 
-> [TASK|alias for a task]: description
+> [TASK|alias for a task]: description | comment
+
+or if you want to keep the category for your own usage:
+
+> category: [TASK|alias for a task] description | comment
 
 Where
 
 * "TASK" is the card ID on JIRA, eg: "BSMNT-1"
 * "alias for a task" is an alias matching your alias configuration, eg: "mgmt" => BS-445
 * "description" is what you have done
+* (opt) "comment" will be stripped and won't be pushed to Tempo
+
+if `line_format` is `categorized`
+* (opt) "category" for instance a project name it won't be pushed
+
+configuration option:
 
 
 ### Examples
