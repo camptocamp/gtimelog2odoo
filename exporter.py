@@ -86,8 +86,16 @@ class Utils:
                 'Not all mandatory fields are present '
                 'in %s config file.' % config_file)
 
+        if args.week < 0:
+            in_past = datetime.now() + timedelta(weeks=args.week)
+            week = in_past.strftime("%W")
+            week = int(week)
+            year = in_past.year
+        else:
+            week = args.week
+            year = args.year
         result['date_window'] = DateWindow(
-            *Utils.date_range_for_week(args.week, args.year)
+            *Utils.date_range_for_week(week, year)
         )
         result['tz_offset'] = tz_offset
 
