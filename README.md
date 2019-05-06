@@ -51,9 +51,9 @@ Where
 
 ### Examples
 
-* Log work to task BSMP-42 with comment "Investigate Issue"
-  > BSMP-42: Investigate issue | this customer drives me mad
-* Log work to task aliased by `daily` with comment "Daily Meeting"
+* Log work to task BSMP-42 with description "Investigate Issue"
+  > BSMP-42: Investigate issue
+* Log work to task aliased by `daily` with description "Daily Meeting"
   > daily: Daily Meeting
 
 ## Roadmap
