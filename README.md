@@ -34,7 +34,11 @@ If both passwords are the same, you can use the environment variable `ALL_PASSWO
 In case the flag non-interactive is set, it is mandatory to use environment variables.
 
 TIP: copy `set_passwords.example` to `set_passwords` and modify it according to your LP passwords.
-Then run it to set both passwords on the fly.
+Then run it to set both passwords on the fly with:
+
+```
+. ./set_passwords
+```
 
 ## GTimeLog Entry Format
 
