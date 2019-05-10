@@ -12,6 +12,14 @@ respectively to Odoo and Jira.
 * -y : Year of the week to synchronize (default: current year)
 * --no-interactive : Do not prompt for passwords or confirmations
 
+TIP: Week number can be a negative number like -1 to use previous week.
+The year will be computed automatically based on current year.
+-y parameter will be ignored.
+
+For instance: if current week is the 1st of 2020 and you push -w 2
+it will push week 51 of 2019.
+
+
 ## Configuration file
 
 By default, the script will look for the configuration file in the same folder as itself.

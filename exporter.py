@@ -42,6 +42,23 @@ class Utils:
         return date.today().year
 
     @staticmethod
+    def parse_week(args):
+        """Parse week number and set week and year
+
+        Use weeknumber as it is if positive
+        if negative, get relative week from current one.
+        """
+        if args.week < 0:
+            in_past = datetime.now() + timedelta(weeks=args.week)
+            week = in_past.strftime("%W")
+            week = int(week)
+            year = in_past.year
+        else:
+            week = args.week
+            year = args.year
+        return week, year
+
+    @staticmethod
     def date_range_for_week(weeknumber, yearnumber):
         year = yearnumber or date.today().year
         week = '%d %d 1' % (year, weeknumber)
@@ -86,8 +103,9 @@ class Utils:
                 'Not all mandatory fields are present '
                 'in %s config file.' % config_file)
 
+        week, year = Utils.parse_week(args)
         result['date_window'] = DateWindow(
-            *Utils.date_range_for_week(args.week, args.year)
+            *Utils.date_range_for_week(week, year)
         )
         result['tz_offset'] = tz_offset
 
