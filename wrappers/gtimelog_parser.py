@@ -17,6 +17,13 @@ class GtimelogParser(object):
         self.timelog = TimeLog(self.settings.get_timelog_file(),
                                self.settings.virtual_midnight)
         self.aliases = config.get('aliases', {})
+        self.line_format = config.get('line_format', '')
+        if self.line_format == 'categorized':
+            self.line_format_str = "category: task description | comment"
+            self.delimiter = " "
+        else:
+            self.line_format_str = "task: description | comment"
+            self.delimiter = ":"
 
     def skip_entry(self, entry):
         if '**' in entry:
@@ -37,14 +44,22 @@ class GtimelogParser(object):
                 attendances[-1] = (attendances[-1][0], stop)
             else:
                 attendances += [(start, stop)]
+            # remove comments
+            line = entry.split('|')[0]
             try:
+                # remove category
+                if self.line_format == 'categorized':
+                    # category is optional
+                    if ':' in line:
+                        line = line.split(':', 1)[1].strip()
                 issue, description = [
-                    x.strip() for x in entry.split(':', 1) if x.strip()
+                    x.strip() for x in line.split(self.delimiter, 1)
+                    if x.strip()
                 ]
             except ValueError:
                 print(
-                    'Entry must be in the format `task: description`. '
-                    'Got ', entry
+                    'Entry must be in the format `{}`. '
+                    'Got '.format(self.line_format_str), entry
                 )
                 continue
 
