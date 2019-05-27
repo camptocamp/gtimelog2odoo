@@ -22,6 +22,7 @@ except ImportError:
 from wrappers.jira_client import JiraClient
 from wrappers.gtimelog_parser import GtimelogParser
 from wrappers.odoo_client import OdooClient
+from wrappers.multi_log import MultiLog
 
 DEFAULT_CONFIG_PATH = dirname(realpath(__file__)) + '/gtimelogrc'
 DateWindow = namedtuple('DateWindow', 'start stop')
@@ -116,28 +117,28 @@ class Utils:
 
         return result
 
-    @staticmethod
-    def report(to_create, to_delete, to_check, attendances):
+    @classmethod
+    def _report_log(cls, logs):
+        for day, day_logs in groupby(logs, key=lambda e: e.date):
+            day_duration = sum([d.duration for d in day_logs])
+            print("  ", day, "-", MultiLog._human_duration(day_duration))
+            for issue, issue_logs in groupby(day_logs, key=lambda e: e.issue):
+                print("    ", issue)
+                for log in issue_logs:
+                    print("      ", log.human_duration, ":", log.comment)
 
-        def report_log(logs):
-            for day, day_logs in groupby(logs, key=lambda e: e.date):
-                print("  ", day)
-                for issue, issue_logs \
-                        in groupby(day_logs, key=lambda e: e.issue):
-                    print("    ", issue)
-                    for log in issue_logs:
-                        print("      ", log.human_duration, ":", log.comment)
-
+    @classmethod
+    def report(cls, to_create, to_delete, to_check, attendances):
         print("Jira Worklogs")
         print("=============")
         if to_create:
             print("Create")
-            report_log(to_create)
+            cls._report_log(to_create)
 
         if to_delete:
             print()
             print("Delete")
-            report_log(to_delete)
+            cls._report_log(to_delete)
 
         if to_check:
             print()
@@ -226,7 +227,7 @@ if __name__ == '__main__':
         checked = jira.check_issue(issue)
         if not checked['ok']:
             to_check[issue] = checked['errors']
-    
+
     # remove not matching
     to_create = [x for x in to_create if x.issue not in to_check]
 
