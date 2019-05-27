@@ -6,7 +6,8 @@ from dateutil import parser
 from .multi_log import MultiLog
 
 
-class TempoClient(object):
+class JiraClient(object):
+
     def __init__(self, config):
         self.jira_url = config.get('jira_url')
         self.tempo_api = config.get('tempo_api')
@@ -36,6 +37,25 @@ class TempoClient(object):
                 "Something went wrong,"
                 " Jira gave %s status code." % resp.status_code
             )
+
+    def get_issue(self, issue):
+        url = self.jira_url.rstrip('/') + '/rest/api/latest/issue/' + issue
+        return self.session.get(url)
+
+    def check_issue(self, issue):
+        response = self.get_issue(issue)
+        result = {
+            'ok': True,
+            'errors': '',
+        }
+        if not response.ok:
+            # we get something like this
+            # {"errorMessages": ["Issue Does Not Exist"],"errors": {}}
+            result = {
+                'ok': False,
+                'errors': ','.join(response.json()['errorMessages'])
+            }
+        return result
 
     def get_worklogs(self, date_window):
         params = {
