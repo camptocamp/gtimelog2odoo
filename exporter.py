@@ -19,9 +19,10 @@ except ImportError:
     print('you have to install tzlocal (pip install tzlocal)')
     sys.exit()
 
-from wrappers.tempo_client import TempoClient
+from wrappers.jira_client import JiraClient
 from wrappers.gtimelog_parser import GtimelogParser
 from wrappers.odoo_client import OdooClient
+from wrappers.multi_log import MultiLog
 
 DEFAULT_CONFIG_PATH = dirname(realpath(__file__)) + '/gtimelogrc'
 DateWindow = namedtuple('DateWindow', 'start stop')
@@ -116,27 +117,39 @@ class Utils:
 
         return result
 
-    @staticmethod
-    def report(to_create, to_delete, attendances):
-        def report_log(logs):
-            if not logs:
-                print("N/A")
-            for day, day_logs in groupby(logs, key=lambda e: e.date):
-                print("  ", day)
-                for issue, issue_logs \
-                        in groupby(day_logs, key=lambda e: e.issue):
-                    print("    ", issue)
-                    for log in issue_logs:
-                        print("      ", log.human_duration, ":", log.comment)
+    @classmethod
+    def _report_log(cls, logs):
+        for day, day_logs in groupby(logs, key=lambda e: e.date):
+            day_duration = sum([d.duration for d in day_logs])
+            print("  ", day, "-", MultiLog._human_duration(day_duration))
+            for issue, issue_logs in groupby(day_logs, key=lambda e: e.issue):
+                print("    ", issue)
+                for log in issue_logs:
+                    print("      ", log.human_duration, ":", log.comment)
 
+    @classmethod
+    def report(cls, to_create, to_delete, to_check, attendances):
         print("Jira Worklogs")
         print("=============")
-        print("Create")
-        report_log(to_create)
+        if to_create:
+            print("Create")
+            cls._report_log(to_create)
 
-        print()
-        print("Delete")
-        report_log(to_delete)
+        if to_delete:
+            print()
+            print("Delete")
+            cls._report_log(to_delete)
+
+        if to_check:
+            print()
+            print("Not matching - TO CHECK")
+            print("")
+            for issue, reason in to_check.items():
+                print("  ", issue, ':', reason)
+
+        if not to_check and not to_delete and not to_create:
+            print()
+            print('All done, nothing to do.')
 
         print()
         print("Odoo Attendances")
@@ -190,31 +203,42 @@ if __name__ == '__main__':
         raise Exception('This script is not intended to manage attendences '
                         'prior to April 1st, 2019')
 
-    tempo = TempoClient(config)
-    tempo_logs = tempo.get_worklogs(config['date_window'])
+    jira = JiraClient(config)
+    jira_logs = jira.get_worklogs(config['date_window'])
 
     gt_parser = GtimelogParser(config)
     attendances, gt_logs = gt_parser.get_entries(config['date_window'])
 
     to_create = []
     to_delete = []
+    to_check = {}
 
-    for l in tempo_logs:
+    for l in jira_logs:
         if l not in gt_logs:
             to_delete.append(l)
 
     for l in gt_logs:
-        if l not in tempo_logs:
+        if l not in jira_logs:
             to_create.append(l)
 
-    Utils.report(to_create, to_delete, attendances)
+    # check issues exists
+    issues = set([x.issue for x in to_create])
+    for issue in issues:
+        checked = jira.check_issue(issue)
+        if not checked['ok']:
+            to_check[issue] = checked['errors']
+
+    # remove not matching
+    to_create = [x for x in to_create if x.issue not in to_check]
+
+    Utils.report(to_create, to_delete, to_check, attendances)
 
     if args.no_interactive or Utils.ask_confirmation():
         for l in to_create:
-            tempo.create_worklog(l)
+            jira.create_worklog(l)
 
         for l in to_delete:
-            tempo.delete_worklog(l)
+            jira.delete_worklog(l)
 
         odoo = OdooClient(config)
         odoo.drop_attendances(config['date_window'])

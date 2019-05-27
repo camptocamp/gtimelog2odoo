@@ -2,6 +2,7 @@ from collections import namedtuple
 
 
 class MultiLog(namedtuple('MultiLog', 'id issue duration date comment')):
+
     def __eq__(self, other):
         d1 = self._asdict()
         del d1['id']
@@ -11,9 +12,12 @@ class MultiLog(namedtuple('MultiLog', 'id issue duration date comment')):
 
     @property
     def human_duration(self):
-        hours = minutes = 0
-        if self.duration:
-            hours = int(self.duration // 3600)
-            minutes = int(self.duration % 3600 / 60)
+        return self._human_duration(self.duration)
 
+    @classmethod
+    def _human_duration(cls, duration):
+        hours = minutes = 0
+        if duration:
+            hours = int(duration // 3600)
+            minutes = int(duration % 3600 / 60)
         return '{}h {:02}m'.format(hours, minutes)
