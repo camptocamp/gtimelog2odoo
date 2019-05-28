@@ -120,6 +120,7 @@ class Utils:
     @classmethod
     def _report_log(cls, logs):
         for day, day_logs in groupby(logs, key=lambda e: e.date):
+            day_logs = tuple(day_logs)  # we have to iterate twice
             day_duration = sum([d.duration for d in day_logs])
             print("  ", day, "-", MultiLog._human_duration(day_duration))
             for issue, issue_logs in groupby(day_logs, key=lambda e: e.issue):
