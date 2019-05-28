@@ -80,11 +80,8 @@ configuration option:
 
 ## Roadmap
 
-* FIX past week number handling: as of today you have to use week number -1
-* Log warnings if an entry does not match a card on JIRA
 * Check if conflicting worklogs could be updated instead of deleting and recreating them
 * Update the remaining estimate on the Jira task instead of setting it to 0
-* Improve GTimeLog entry parsing
 * Optimize logs aggregation
 * Better error management
 * Build a package
