@@ -1,0 +1,4 @@
+#!/bin/bash
+export ODOO_PASSWORD=$(lpass show 6812866918418451198 -p)
+export TEMPO_PASSWORD=$(lpass show 6812866918418451198 -p)
+python3  ~/gtimelog2odoo/exporter.py -w $(expr $(date +"%W") - 2)

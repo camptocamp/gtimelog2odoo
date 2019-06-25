@@ -7,5 +7,7 @@ __pycache__/
 
 # local config file
 gtimelogrc
-
+timesheet
+last_timesheet
 set_passwords
+

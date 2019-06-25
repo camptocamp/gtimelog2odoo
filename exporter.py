@@ -83,7 +83,8 @@ class Utils:
 
         config = configparser.ConfigParser()
         config.optionxform = str  # do not lowercase the aliases section!
-        config.read(config_file)
+        # config.read(config_file)
+        config.read('gtimelogrc')
 
         if not config.has_section('gtimelog_exporter'):
             raise Exception(
