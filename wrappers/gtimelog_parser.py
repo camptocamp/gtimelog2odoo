@@ -75,8 +75,11 @@ class GtimelogParser(object):
                 description
             ))
 
-        # Dangling attendance for today
-        if attendances and attendances[-1][1].date() == date.today():
-            attendances[-1] = (attendances[-1][0], None)
+        # Dangling attendance for today except friday
+        if attendances:
+            today = attendances[-1][1].date() == date.today()
+            friday = attendances[-1][1].weekday() == 4
+            if today and not friday:
+                attendances[-1] = (attendances[-1][0], None)
 
         return attendances, worklogs
