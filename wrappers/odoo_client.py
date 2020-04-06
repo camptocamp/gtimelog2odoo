@@ -1,6 +1,7 @@
 import erppeek
 
 from datetime import timedelta
+from xmlrpc.client import Fault
 
 
 class OdooClient(object):
@@ -35,8 +36,19 @@ class OdooClient(object):
              ('check_out', '=', None)
              ]
         )
+        error_removing_all = False
         if attendance_ids:
-            self.client.HrAttendance.unlink(attendance_ids)
+            try:
+                self.client.HrAttendance.unlink(attendance_ids)
+            except Fault:
+                error_removing_all = True
+        if error_removing_all:
+            for attendance_id in attendance_ids:
+                try:
+                    self.client.HrAttendance.unlink(attendance_id)
+                except Fault:
+                    pass
+            print('Some Odoo attendances could not be updated, invoicing period probably closed !')
 
     def create_attendance(self, check_in, check_out):
         delta = timedelta(seconds=self.tz_offset)
@@ -46,4 +58,9 @@ class OdooClient(object):
             'check_out': (check_out and
                           (check_out - delta).strftime('%Y-%m-%d %H:%M:%S'))
         }
-        self.client.HrAttendance.create(values)
+        try:
+            self.client.HrAttendance.create(values)
+        except Fault:
+            print("Error updating attendance for {} to {}".format(
+                values['check_in'], values['check_out'])
+            )
