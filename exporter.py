@@ -129,7 +129,7 @@ class Utils:
                     print("      ", log.human_duration, ":", log.comment)
 
     @classmethod
-    def report(cls, to_create, to_delete, to_check, attendances):
+    def report(cls, to_create, to_delete, to_check, attendances=None):
         print("Jira Worklogs")
         print("=============")
         if to_create:
@@ -148,21 +148,30 @@ class Utils:
             for issue, reason in to_check.items():
                 print("  ", issue, ':', reason)
 
-        if not to_check and not to_delete and not to_create:
+        if attendances is not None:
             print()
-            print('All done, nothing to do.')
+            print("Odoo Attendances")
+            print("================")
+            for day, day_attendances \
+                    in groupby(attendances, key=lambda e: e[0].date()):
+                print("{}".format(day))
+                for attendance in day_attendances:
+                    print("  {} → {}".format(
+                        attendance[0].time(),
+                        attendance[1] and attendance[1].time()
+                    ))
 
-        print()
-        print("Odoo Attendances")
-        print("================")
-        for day, day_attendances \
-                in groupby(attendances, key=lambda e: e[0].date()):
-            print("{}".format(day))
-            for attendance in day_attendances:
-                print("  {} → {}".format(
-                    attendance[0].time(),
-                    attendance[1] and attendance[1].time()
-                ))
+
+def get_odoo_conf(parser):
+    config = {}
+    odoo_password = env.get('ALL_PASSWORD') or env.get('ODOO_PASSWORD')
+    if not odoo_password:
+        if args.no_interactive:
+            raise Exception('Password missing in non-interactive, '
+                            'set with ODOO_PASSWORD')
+        odoo_password = getpass('Odoo password: ')
+    config['odoo_password'] = odoo_password
+    return config
 
 
 if __name__ == '__main__':
@@ -175,28 +184,28 @@ if __name__ == '__main__':
     parser.add_argument('-y', '--year',
                         default=Utils.current_year(), type=int)
     parser.add_argument('--no-interactive', action='store_true')
+    parser.add_argument('--no-attendance', action='store_true')
 
     args = parser.parse_args()
 
     config = Utils.parse_config(args)
 
-    odoo_password = tempo_password = env.get('ALL_PASSWORD')
+    no_attendance = args.no_attendance or config.get('no_attendance')
+    if no_attendance:
+        odoo_conf = {}
+        print()
+        print('`--no-attendance` flag is ON -> Skipping Odoo attendances')
+        print()
+    else:
+        odoo_conf = get_odoo_conf(config)
 
-    odoo_password = odoo_password or env.get('ODOO_PASSWORD')
-    if not odoo_password:
-        if args.no_interactive:
-            raise Exception('Password missing in non-interactive, '
-                            'set with ODOO_PASSWORD')
-        odoo_password = getpass('Odoo password: ')
-
-    tempo_password = tempo_password or env.get('TEMPO_PASSWORD')
+    tempo_password = env.get('ALL_PASSWORD') or env.get('TEMPO_PASSWORD')
     if not tempo_password:
         if args.no_interactive:
             raise Exception('Password missing in non-interactive, '
                             'set with TEMPO_PASSWORD')
         tempo_password = getpass('Tempo (Jira) password: ')
 
-    config['odoo_password'] = odoo_password
     config['tempo_password'] = tempo_password
 
     not_before = datetime.strptime('2019-04-01', '%Y-%M-%d').date()
@@ -232,16 +241,27 @@ if __name__ == '__main__':
     # remove not matching
     to_create = [x for x in to_create if x.issue not in to_check]
 
-    Utils.report(to_create, to_delete, to_check, attendances)
+    Utils.report(to_create, to_delete, to_check, attendances if not no_attendance else None)
 
-    if args.no_interactive or Utils.ask_confirmation():
+    nothing_to_do = False
+    if not to_check and not to_delete and not to_create:
+        nothing_to_do = True
+        print()
+        print('All done, nothing to do.')
+
+    confirmed = False
+    if not nothing_to_do:
+        confirmed = Utils.ask_confirmation()
+
+    if args.no_interactive or confirmed:
         for l in to_create:
             jira.create_worklog(l)
 
         for l in to_delete:
             jira.delete_worklog(l)
 
-        odoo = OdooClient(config)
-        odoo.drop_attendances(config['date_window'])
-        for attendance in attendances:
-            odoo.create_attendance(attendance[0], attendance[1])
+        if not no_attendance:
+            odoo = OdooClient(odoo_conf)
+            odoo.drop_attendances(config['date_window'])
+            for attendance in attendances:
+                odoo.create_attendance(attendance[0], attendance[1])
