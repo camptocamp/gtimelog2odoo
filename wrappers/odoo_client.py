@@ -36,6 +36,8 @@ class OdooClient(object):
              ('check_out', '=', None)
              ]
         )
+        # TODO: we should avoid deletion of all records when not required.
+        # If they have not changed, it's pointless to do it.
         error_removing_all = False
         if attendance_ids:
             try:
