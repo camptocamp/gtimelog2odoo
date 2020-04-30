@@ -19,6 +19,7 @@ The year will be computed automatically based on current year.
 For instance: if current week is the 1st of 2020 and you push -w 2
 it will push week 51 of 2019.
 
+If you want to skip attendances you can use `--no-attendance` or set `no_attendance = 1` in `gtimelogrc`.
 
 ## Configuration file
 
