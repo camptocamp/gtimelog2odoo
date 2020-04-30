@@ -162,16 +162,16 @@ class Utils:
                     ))
 
 
-def get_odoo_conf(parser):
-    config = {}
+def get_odoo_conf(config):
+    odoo_config = config.copy()
     odoo_password = env.get('ALL_PASSWORD') or env.get('ODOO_PASSWORD')
     if not odoo_password:
         if args.no_interactive:
             raise Exception('Password missing in non-interactive, '
                             'set with ODOO_PASSWORD')
         odoo_password = getpass('Odoo password: ')
-    config['odoo_password'] = odoo_password
-    return config
+    odoo_config['odoo_password'] = odoo_password
+    return odoo_config
 
 
 if __name__ == '__main__':
