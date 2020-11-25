@@ -76,15 +76,16 @@ class Utils:
 
     @staticmethod
     def parse_config(args):
+        # import pdb;pdb.set_trace()
         config_file = pathlib.Path(args.config).expanduser().resolve()
+        # import pdb;pdb.set_trace()
         if not config_file.exists():
             raise Exception(
                 "Configuration file %s does not exist." % config_file)
 
         config = configparser.ConfigParser()
-        config.optionxform = str  # do not lowercase the aliases section!
-        # config.read(config_file)
-        config.read('gtimelogrc')
+        # config.optionxform = str  # do not lowercase the aliases section!
+        config.read(args.config)
 
         if not config.has_section('gtimelog_exporter'):
             raise Exception(
@@ -178,7 +179,8 @@ if __name__ == '__main__':
     parser.add_argument('--no-interactive', action='store_true')
 
     args = parser.parse_args()
-
+    print(args)
+    # import pdb;pdb.set_trace()
     config = Utils.parse_config(args)
 
     odoo_password = tempo_password = env.get('ALL_PASSWORD')
