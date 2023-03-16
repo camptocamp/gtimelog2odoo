@@ -78,6 +78,21 @@ class JiraClient(object):
         url = urljoin(self.jira_url, f'rest/api/latest/issue/{issue}')
         return self.jira_session.get(url, params={"fields": fields})
 
+    def check_issue(self, issue):
+        response = self.get_issue(issue)
+        result = {
+            'ok': True,
+            'errors': '',
+        }
+        if not response.ok:
+            # we get something like this
+            # {"errorMessages": ["Issue Does Not Exist"],"errors": {}}
+            result = {
+                'ok': False,
+                'errors': ','.join(response.json()['errorMessages'])
+            }
+        return result
+
     def get_worklogs(self, date_window):
         url = self.worklog_url
         response = self.tempo_session.get(
@@ -121,7 +136,6 @@ class JiraClient(object):
             "startTime":  worklog.time.strftime('%H:%M:%S'),
             "timeSpentSeconds": worklog.duration
         }
-
         return self.tempo_session.post(
             self.worklog_create_url,
             json=values,

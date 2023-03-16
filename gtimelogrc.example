@@ -8,6 +8,7 @@ odoo_protocol = jsonrpc+ssl
 odoo_db = awesome_db_name
 odoo_user = my-user
 line_format = standard
+dispatch_blacklist_prefixes =
 
 [gtimelog_exporter:aliases]
 my-alias = ABC-42

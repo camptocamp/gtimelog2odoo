@@ -131,26 +131,40 @@ class Utils:
                 print("    ", issue)
                 for log in issue_logs:
                     print("      ", log.human_duration, ":", log.comment)
+    @classmethod
+    def _report_log(cls, logs):
+        for day, day_logs in groupby(logs, key=lambda e: e.date):
+            day_logs = tuple(day_logs)  # we have to iterate twice
+            day_duration = sum([d.duration for d in day_logs])
+            print("  ", day, "-", MultiLog._human_duration(day_duration))
+            for issue, issue_logs in groupby(day_logs, key=lambda e: e.issue):
+                print("    ", issue)
+                for log in issue_logs:
+                    print("      ", log.human_duration, ":", log.comment)
 
     @classmethod
-    def report(cls, to_create, to_delete, to_check, attendances=None):
+    def report(cls, to_create, to_delete, to_check, to_dispatch=None, attendances=None):
         print("Jira Worklogs")
         print("=============")
+        if to_dispatch:
+            print("Dispatch")
+            cls._report_log(to_dispatch)
+
         if to_create:
-            print("Create")
+            print("# New entries to CREATE")
             cls._report_log(to_create)
 
         if to_delete:
             print()
-            print("Delete")
+            print("# Entries to DELETE")
             cls._report_log(to_delete)
 
         if to_check:
             print()
-            print("Not matching - TO CHECK")
+            print("# Not matching entries to CHECK")
             print("")
-            for reason, logs in to_check.items():
-                print("  ", reason, ':', ', '.join(log.issue for log in logs))
+            for issue, reason in to_check.items():
+                print("  ", issue, ':', reason)
 
         if attendances is not None:
             print()
@@ -237,24 +251,34 @@ if __name__ == '__main__':
     jira_logs, jira_errors = jira.populate_issue_field(jira_logs)
 
     gt_parser = GtimelogParser(config)
-    attendances, gt_logs = gt_parser.get_entries(config['date_window'])
-    gt_logs, gt_errors = jira.populate_issue_field(gt_logs)
+    attendances, gt_logs, gt_dispatch_logs = gt_parser.get_entries(config['date_window'])
 
     to_create = []
     to_delete = []
+    to_check = {}
 
-    for log in jira_logs:
-        if log not in gt_logs:
-            to_delete.append(log)
+    for l in jira_logs:
+        if l not in gt_logs:
+            to_delete.append(l)
 
-    for log in gt_logs:
-        if log not in jira_logs:
-            to_create.append(log)
+    for l in gt_logs:
+        if l not in jira_logs and l not in gt_dispatch_logs:
+            to_create.append(l)
 
-    Utils.report(to_create, to_delete, gt_errors, attendances if not no_attendance else None)
+    # check issues exists
+    issues = set([x.issue for x in to_create])
+    for issue in issues:
+        checked = jira.check_issue(issue)
+        if not checked['ok']:
+            to_check[issue] = checked['errors']
+
+    # remove not matching
+    to_create = [x for x in to_create if x.issue not in to_check]
+
+    Utils.report(to_create, to_delete, to_check, gt_dispatch_logs, attendances if not no_attendance else None)
 
     nothing_to_do = False
-    if not gt_errors and not to_delete and not to_create:
+    if not to_check and not to_delete and not to_create:
         nothing_to_do = True
         print()
         print('All done, nothing to do.')
