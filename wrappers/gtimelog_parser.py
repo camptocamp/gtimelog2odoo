@@ -18,12 +18,20 @@ class GtimelogParser(object):
                                self.settings.virtual_midnight)
         self.aliases = config.get('aliases', {})
         self.line_format = config.get('line_format', '')
+        self.internal_issue_prefixes = self.parse_internal_issue_prefixes(config)
         if self.line_format == 'categorized':
             self.line_format_str = "category: task description | comment"
             self.delimiter = " "
         else:
             self.line_format_str = "task: description | comment"
             self.delimiter = ":"
+
+    def parse_internal_issue_prefixes(self, config):
+        prefixes = config.get('internal_issue_prefixes', "").split(",")
+        # Cleanup in case of spaces
+        return [
+            prefix.strip() for prefix in prefixes
+        ]
 
     def skip_entry(self, entry):
         if '**' in entry:
@@ -32,11 +40,73 @@ class GtimelogParser(object):
             return True
         return False
 
+    def is_dispatch_entry(self, entry):
+        """Returns wether or not this entry is a dispatch"""
+        return '++' in entry
+
+    def is_internal_entry(self, entry):
+        """Returns wether or not this entry is internal"""
+        issue, description = self.get_issue_description(entry)
+        return any([
+            issue.startswith(ref)
+            for ref in self.internal_issue_prefixes
+        ])
+
+    def get_dispatchable_entries(self, window):
+        """Returns non internal nor dispatchable nor skippable entries"""
+        return [
+            entry
+            for start, stop, duration, tags, entry in window.all_entries()
+            if not (
+                self.skip_entry(entry)
+                or self.is_dispatch_entry(entry)
+                or self.is_internal_entry(entry)
+            )
+        ]
+
+    def get_duration_to_dispatch(self, window):
+        dispatchable_entrie = self.get_dispatchable_entries(window)
+        return sum([
+            int(duration.total_seconds())
+            for start, stop, duration, tags, entry in window.all_entries()
+            if self.is_dispatch_entry(entry)
+        ]) / len(dispatchable_entrie)
+
+    def get_issue_description(self, entry):
+        # remove comments
+        line = entry.split('|')[0]
+        try:
+            # remove category
+            if self.line_format == 'categorized':
+                # category is optional
+                if ':' in line:
+                    line = line.split(':', 1)[1].strip()
+            issue, description = [
+                x.strip() for x in line.split(self.delimiter, 1)
+                if x.strip()
+            ]
+        except ValueError:
+            print(
+                'Entry must be in the format `{}`. '
+                'Got '.format(self.line_format_str), entry
+            )
+            return
+
+        # no matter what we find as `issue`:
+        # if we have an alias override it takes precedence
+        if issue in self.aliases:
+            issue = self.aliases[issue]
+        return issue, description
+
     def get_entries(self, date_window):
         window = self.timelog.window_for(date_window.start, date_window.stop)
 
         worklogs = []
+        dispatchlogs = []
         attendances = []
+        dispatchable_entrie = self.get_dispatchable_entries(window)
+        duration_to_dispatch = self.get_duration_to_dispatch(window)
+
         for start, stop, duration, tags, entry in window.all_entries():
             if self.skip_entry(entry):
                 continue
@@ -44,39 +114,28 @@ class GtimelogParser(object):
                 attendances[-1] = (attendances[-1][0], stop)
             else:
                 attendances += [(start, stop)]
-            # remove comments
-            line = entry.split('|')[0]
-            try:
-                # remove category
-                if self.line_format == 'categorized':
-                    # category is optional
-                    if ':' in line:
-                        line = line.split(':', 1)[1].strip()
-                issue, description = [
-                    x.strip() for x in line.split(self.delimiter, 1)
-                    if x.strip()
-                ]
-            except ValueError:
-                print(
-                    'Entry must be in the format `{}`. '
-                    'Got '.format(self.line_format_str), entry
-                )
-                continue
 
-            # no matter what we find as `issue`:
-            # if we have an alias override it takes precedence
-            if issue in self.aliases:
-                issue = self.aliases[issue]
-            worklogs.append(MultiLog(
+            issue, description = self.get_issue_description(entry)
+
+            dispatched_duration = int(duration.total_seconds())
+            if entry in dispatchable_entrie:
+                dispatched_duration = (
+                    int(duration.total_seconds()) + duration_to_dispatch
+                )
+            log_entry = MultiLog(
                 None,
                 issue,
-                int(duration.total_seconds()),
+                dispatched_duration,
                 start.date(),
                 description
-            ))
+            )
+            if self.is_dispatch_entry(entry):
+                dispatchlogs.append(log_entry)
+            else:
+                worklogs.append(log_entry)
 
         # Dangling attendance for today
         if attendances and attendances[-1][1].date() == date.today():
             attendances[-1] = (attendances[-1][0], None)
 
-        return attendances, worklogs
+        return attendances, worklogs, dispatchlogs
