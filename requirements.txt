@@ -1,6 +1,6 @@
 argparse
 configparser
-erppeek
+odoorpc
 gtimelog
 python-dateutil
 requests
