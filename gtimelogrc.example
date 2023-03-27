@@ -8,6 +8,8 @@ odoo_protocol = jsonrpc
 odoo_db = awesome_db_name
 odoo_user = my-user
 line_format = standard
+protocol = jsonrpc+ssl
+port = 443
 
 [gtimelog_exporter:aliases]
 my-alias = ABC-42
