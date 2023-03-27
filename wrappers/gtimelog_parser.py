@@ -1,3 +1,5 @@
+import pprint
+
 try:
     from gtimelog.settings import Settings
     from gtimelog.timelog import TimeLog
@@ -18,7 +20,7 @@ class GtimelogParser(object):
                                self.settings.virtual_midnight)
         self.aliases = config.get('aliases', {})
         self.line_format = config.get('line_format', '')
-        self.internal_issue_prefixes = self.parse_internal_issue_prefixes(config)
+        self.dispatch_blacklist_prefixes = self.parse_dispatch_blacklist_prefixes(config)
         if self.line_format == 'categorized':
             self.line_format_str = "category: task description | comment"
             self.delimiter = " "
@@ -26,11 +28,12 @@ class GtimelogParser(object):
             self.line_format_str = "task: description | comment"
             self.delimiter = ":"
 
-    def parse_internal_issue_prefixes(self, config):
-        prefixes = config.get('internal_issue_prefixes', "").split(",")
+    def parse_dispatch_blacklist_prefixes(self, config):
+        prefixes = config.get('dispatch_blacklist_prefixes', "").split(",")
         # Cleanup in case of spaces
         return [
             prefix.strip() for prefix in prefixes
+            if prefix.strip()
         ]
 
     def skip_entry(self, entry):
@@ -41,18 +44,20 @@ class GtimelogParser(object):
         return False
 
     def is_dispatch_entry(self, entry):
-        """Returns wether or not this entry is a dispatch"""
+        """Returns whether or not this entry is a dispatch"""
         return '++' in entry
 
     def is_internal_entry(self, entry):
-        """Returns wether or not this entry is internal"""
+        """Returns whether or not this entry is internal"""
+        if not self.dispatch_blacklist_prefixes:
+            return False
         issue, description = self.get_issue_description(entry)
         return any([
             issue.startswith(ref)
-            for ref in self.internal_issue_prefixes
+            for ref in self.dispatch_blacklist_prefixes
         ])
 
-    def get_dispatchable_entries(self, window):
+    def get_entries_to_dispatch(self, window):
         """Returns non internal nor dispatchable nor skippable entries"""
         return [
             entry
@@ -65,12 +70,16 @@ class GtimelogParser(object):
         ]
 
     def get_duration_to_dispatch(self, window):
-        dispatchable_entrie = self.get_dispatchable_entries(window)
+        """Returns the time to dispatch to entries
+        i.e. total amount of dispatchable entries divided byt the quantity of
+        entries to dispatch
+        """
+        entries_to_dispatch = self.get_entries_to_dispatch(window)
         return sum([
             int(duration.total_seconds())
             for start, stop, duration, tags, entry in window.all_entries()
             if self.is_dispatch_entry(entry)
-        ]) / len(dispatchable_entrie)
+        ]) / len(entries_to_dispatch)
 
     def get_issue_description(self, entry):
         # remove comments
@@ -104,7 +113,7 @@ class GtimelogParser(object):
         worklogs = []
         dispatchlogs = []
         attendances = []
-        dispatchable_entrie = self.get_dispatchable_entries(window)
+        entries_to_dispatch = self.get_entries_to_dispatch(window)
         duration_to_dispatch = self.get_duration_to_dispatch(window)
 
         for start, stop, duration, tags, entry in window.all_entries():
@@ -118,7 +127,8 @@ class GtimelogParser(object):
             issue, description = self.get_issue_description(entry)
 
             dispatched_duration = int(duration.total_seconds())
-            if entry in dispatchable_entrie:
+            # Apply dispatch to dispatchable entries only
+            if entry in entries_to_dispatch:
                 dispatched_duration = (
                     int(duration.total_seconds()) + duration_to_dispatch
                 )

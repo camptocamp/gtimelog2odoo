@@ -129,7 +129,7 @@ class Utils:
                     print("      ", log.human_duration, ":", log.comment)
 
     @classmethod
-    def report(cls, to_create, to_delete, to_check, to_dispatch=[], attendances=None):
+    def report(cls, to_create, to_delete, to_check, to_dispatch=None, attendances=None):
         print("Jira Worklogs")
         print("=============")
         if to_dispatch:
