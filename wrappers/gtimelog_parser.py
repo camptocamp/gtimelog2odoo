@@ -74,12 +74,16 @@ class GtimelogParser(object):
         i.e. total amount of dispatchable entries divided byt the quantity of
         entries to dispatch
         """
+        total_duration = 0
         entries_to_dispatch = self.get_entries_to_dispatch(window)
-        return sum([
-            int(duration.total_seconds())
-            for start, stop, duration, tags, entry in window.all_entries()
-            if self.is_dispatch_entry(entry)
-        ]) / len(entries_to_dispatch)
+        total_entries_to_dispatch = len(entries_to_dispatch)
+        if not total_entries_to_dispatch:
+            return total_duration
+        for start, stop, duration, tags, entry in window.all_entries():
+            if not self.is_dispatch_entry(entry):
+                continue
+            total_duration += int(duration.total_seconds())
+        return total_duration / total_entries_to_dispatch
 
     def get_issue_description(self, entry):
         # remove comments
