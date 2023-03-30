@@ -47,8 +47,9 @@ class GtimelogParser(object):
         """Returns whether or not this entry is a dispatch"""
         return '++' in entry
 
-    def is_internal_entry(self, entry):
-        """Returns whether or not this entry is internal"""
+    def is_dispatch_entry_blacklisted(self, entry):
+        """Returns whether or not this entry will not be considered during
+        dispatch"""
         if not self.dispatch_blacklist_prefixes:
             return False
         issue, description = self.get_issue_description(entry)
@@ -65,7 +66,7 @@ class GtimelogParser(object):
             if not (
                 self.skip_entry(entry)
                 or self.is_dispatch_entry(entry)
-                or self.is_internal_entry(entry)
+                or self.is_dispatch_entry_blacklisted(entry)
             )
         ]
 

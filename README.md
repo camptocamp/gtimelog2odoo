@@ -36,10 +36,10 @@ Each alias is a key/value combination:
 
 ### Internal issue references
 
-Internal issue prefixes are used to avoid adding 'to dispatch' time on internal entries
+Blacklisted issue prefixes are used to avoid adding 'to dispatch' time on such entries
 
-You can add as many internal issue prefixes as you want in the corresponding configuration file section.
-> internal_issue_prefixes = BS-, BSRD-, ABCH-, ABFR-
+You can add as many issue prefixes as you want in the corresponding configuration file section.
+> dispatch_blacklist_prefixes = BS-,BSRD-,ABCH-,ABFR-
 
 ### Passwords
 
@@ -78,7 +78,7 @@ if `line_format` is `categorized`
 
 if `description` contains a `++` sign, then this line will be
 considered as a dispatch line (i.e. duration will be equally added to all
-the non internal remaining tasks)
+the non blacklisted entries)
 
 configuration option:
 
