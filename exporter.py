@@ -6,7 +6,7 @@ import configparser
 import pathlib
 
 from builtins import input
-from collections import namedtuple, OrderedDict
+from collections import namedtuple
 from datetime import datetime, date, timedelta
 from getpass import getpass
 from os import environ as env
@@ -268,7 +268,7 @@ if __name__ == '__main__':
 
         if repair_estimate:
             # Get a unique list of all the issues impacted
-            to_repair = list(OrderedDict.fromkeys([l.issue for l in to_create] + [l.issue for l in to_delete]))
+            to_repair = set([l.issue for l in to_create] + [l.issue for l in to_delete])
             for i in to_repair:
                 try:
                     jira.repair_estimate(i)
