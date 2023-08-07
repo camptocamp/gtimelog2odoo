@@ -6,7 +6,7 @@ import configparser
 import pathlib
 
 from builtins import input
-from collections import namedtuple
+from collections import namedtuple, OrderedDict
 from datetime import datetime, date, timedelta
 from getpass import getpass
 from os import environ as env
@@ -185,12 +185,18 @@ if __name__ == '__main__':
                         default=Utils.current_year(), type=int)
     parser.add_argument('--no-interactive', action='store_true')
     parser.add_argument('--no-attendance', action='store_true')
+    parser.add_argument('-r','--repair-estimate',
+                        default=False,
+                        action='store_true',
+                        help='The script will attempt to update the "Remaining Estimate", default is False')
 
     args = parser.parse_args()
 
     config = Utils.parse_config(args)
 
     no_attendance = args.no_attendance or config.get('no_attendance')
+    repair_estimate = args.repair_estimate
+
     if no_attendance:
         odoo_conf = {}
         print()
@@ -259,6 +265,15 @@ if __name__ == '__main__':
 
         for l in to_delete:
             jira.delete_worklog(l)
+
+        if repair_estimate:
+            # Get a unique list of all the issues impacted
+            to_repair = list(OrderedDict.fromkeys([l.issue for l in to_create] + [l.issue for l in to_delete]))
+            for i in to_repair:
+                try:
+                    jira.repair_estimate(i)
+                except Exception as e:
+                    print(e)
 
         if not no_attendance:
             odoo = OdooClient(odoo_conf)

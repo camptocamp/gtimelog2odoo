@@ -82,7 +82,6 @@ configuration option:
 ## Roadmap
 
 * Check if conflicting worklogs could be updated instead of deleting and recreating them
-* Update the remaining estimate on the Jira task instead of setting it to 0
 * Optimize logs aggregation
 * Better error management
 * Build a package

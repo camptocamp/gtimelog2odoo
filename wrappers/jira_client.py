@@ -5,8 +5,25 @@ from dateutil import parser
 
 from .multi_log import MultiLog
 
-
 class JiraClient(object):
+    @staticmethod
+    def convert_seconds_to_jira_time(seconds):
+        weeks, remainder = divmod(seconds, 5 * 8 * 3600)
+        days, remainder = divmod(seconds, 8 * 3600)
+        hours, remainder = divmod(remainder, 3600)
+        minutes, _ = divmod(remainder, 60)
+
+        jira_time = []
+        if weeks > 0:
+            jira_time.append(f"{weeks}w")
+        if days > 0:
+            jira_time.append(f"{days}d")
+        if hours > 0:
+            jira_time.append(f"{hours}h")
+        if minutes > 0:
+            jira_time.append(f"{minutes}m")
+
+        return " ".join(jira_time) if jira_time else "0s"
 
     def __init__(self, config):
         self.jira_url = config.get('jira_url')
@@ -100,7 +117,6 @@ class JiraClient(object):
             'tempo_api': self.tempo_api
         }
         url = "{jira_url}{tempo_api}worklogs/"
-
         values = {
             "issue": {
                 "key": worklog.issue,
@@ -128,3 +144,30 @@ class JiraClient(object):
         }
         url = "{jira_url}{tempo_api}worklogs/{id}/"
         return self.session.delete(url.format(**params))
+
+    def repair_estimate(self, issue):
+        response = self.get_issue(issue)
+        if not response.ok:
+            raise Exception(f"Cannot get issue: {issue}")
+        try:
+            original_estimate_s = response.json()['fields']['timetracking']['originalEstimateSeconds']
+            original_estimate = response.json()['fields']['timetracking']['originalEstimate']
+            timespent_s = response.json()['fields']['timetracking']['timeSpentSeconds']
+            diff_o_e_vs_t_s = original_estimate_s - timespent_s
+            remaining_estimate_s = diff_o_e_vs_t_s if diff_o_e_vs_t_s >= 0 else 0
+
+            payload = {
+                "fields": {
+                    "timetracking": {
+                        "originalEstimate": original_estimate,
+                        "originalEstimateSeconds" : original_estimate_s,
+                        "remainingEstimateSeconds": remaining_estimate_s,
+                        "remainingEstimate": self.convert_seconds_to_jira_time(remaining_estimate_s),
+                    }
+                }
+            }
+            url = self.jira_url.rstrip('/') + '/rest/api/latest/issue/' + issue
+            self.session.headers.update({"Content-Type": "application/json"})
+            put_response = self.session.put(url, json=payload)
+        except KeyError as e:
+            raise Exception(f'impossible to edit remaining estimate in given issue: {issue}, check permissions and jira workflow. Possibly the "originalEstimate filed is not editable.')
