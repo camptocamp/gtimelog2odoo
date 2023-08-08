@@ -148,7 +148,7 @@ class JiraClient(object):
     def repair_estimate(self, issue):
         response = self.get_issue(issue)
         if not response.ok:
-            raise Exception(f"Cannot get issue: {issue}")
+            raise Exception(f"Cannot fetch information for issue: {issue}")
         try:
             timetracking = response.json()['fields']['timetracking']
             original_estimate_s = timetracking['originalEstimateSeconds']
@@ -171,4 +171,4 @@ class JiraClient(object):
             self.session.headers.update({"Content-Type": "application/json"})
             put_response = self.session.put(url, json=payload)
         except KeyError as e:
-            raise Exception(f'impossible to edit remaining estimate in given issue: {issue}, check permissions and jira workflow. Possibly the "originalEstimate filed is not editable.')
+            raise Exception(f"repair_estimate: impossible to edit remaining estimate for {issue}. Check permissions and jira workflow. Maybe the `originalEstimate` field is not editable.")
