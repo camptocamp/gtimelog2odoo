@@ -150,9 +150,10 @@ class JiraClient(object):
         if not response.ok:
             raise Exception(f"Cannot get issue: {issue}")
         try:
-            original_estimate_s = response.json()['fields']['timetracking']['originalEstimateSeconds']
-            original_estimate = response.json()['fields']['timetracking']['originalEstimate']
-            timespent_s = response.json()['fields']['timetracking']['timeSpentSeconds']
+            timetracking = response.json()['fields']['timetracking']
+            original_estimate_s = timetracking['originalEstimateSeconds']
+            original_estimate = timetracking['originalEstimate']
+            timespent_s = timetracking['timeSpentSeconds']
             diff_o_e_vs_t_s = original_estimate_s - timespent_s
             remaining_estimate_s = diff_o_e_vs_t_s if diff_o_e_vs_t_s >= 0 else 0
 
