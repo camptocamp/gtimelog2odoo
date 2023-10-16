@@ -129,9 +129,13 @@ class Utils:
                     print("      ", log.human_duration, ":", log.comment)
 
     @classmethod
-    def report(cls, to_create, to_delete, to_check, attendances=None):
+    def report(cls, to_create, to_delete, to_check, to_dispatch=None, attendances=None):
         print("Jira Worklogs")
         print("=============")
+        if to_dispatch:
+            print("Dispatch")
+            cls._report_log(to_dispatch)
+
         if to_create:
             print("Create")
             cls._report_log(to_create)
@@ -223,7 +227,7 @@ if __name__ == '__main__':
     jira_logs = jira.get_worklogs(config['date_window'])
 
     gt_parser = GtimelogParser(config)
-    attendances, gt_logs = gt_parser.get_entries(config['date_window'])
+    attendances, gt_logs, gt_dispatch_logs = gt_parser.get_entries(config['date_window'])
 
     to_create = []
     to_delete = []
@@ -234,7 +238,7 @@ if __name__ == '__main__':
             to_delete.append(l)
 
     for l in gt_logs:
-        if l not in jira_logs:
+        if l not in jira_logs and l not in gt_dispatch_logs:
             to_create.append(l)
 
     # check issues exists
@@ -247,7 +251,7 @@ if __name__ == '__main__':
     # remove not matching
     to_create = [x for x in to_create if x.issue not in to_check]
 
-    Utils.report(to_create, to_delete, to_check, attendances if not no_attendance else None)
+    Utils.report(to_create, to_delete, to_check, gt_dispatch_logs, attendances if not no_attendance else None)
 
     nothing_to_do = False
     if not to_check and not to_delete and not to_create:
