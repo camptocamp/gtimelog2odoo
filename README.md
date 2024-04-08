@@ -21,6 +21,8 @@ it will push week 51 of 2019.
 
 If you want to skip attendances you can use `--no-attendance` or set `no_attendance = 1` in `gtimelogrc`.
 
+If you want to repair the broken estimate after logging time on a jira task, you can use `--repair-estimate` or set `repair_estimate = 1` in `gtimelogrc`.
+
 ## Configuration file
 
 By default, the script will look for the configuration file in the same folder as itself.
