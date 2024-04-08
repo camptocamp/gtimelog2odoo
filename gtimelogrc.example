@@ -8,6 +8,8 @@ odoo_protocol = jsonrpc+ssl
 odoo_db = awesome_db_name
 odoo_user = my-user
 line_format = standard
+no_attendance = 0
+repair_estimate = 0
 
 [gtimelog_exporter:aliases]
 my-alias = ABC-42
