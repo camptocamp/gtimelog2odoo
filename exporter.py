@@ -195,7 +195,7 @@ if __name__ == '__main__':
     config = Utils.parse_config(args)
 
     no_attendance = args.no_attendance or config.get('no_attendance')
-    repair_estimate = args.repair_estimate
+    repair_estimate = args.repair_estimate or config.get('repair_estimate')
 
     if no_attendance:
         odoo_conf = {}
