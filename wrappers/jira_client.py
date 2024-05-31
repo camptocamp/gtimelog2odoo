@@ -1,9 +1,12 @@
-import json
 import requests
+from requests.auth import HTTPBasicAuth
+from urllib.parse import urljoin
 
 from dateutil import parser
+from collections import defaultdict
 
 from .multi_log import MultiLog
+
 
 class JiraClient(object):
     @staticmethod
@@ -25,23 +28,31 @@ class JiraClient(object):
 
         return " ".join(jira_time) if jira_time else "0s"
 
-    def __init__(self, config):
+    def __init__(self, config: dict):
         self.jira_url = config.get('jira_url')
-        self.tempo_api = config.get('tempo_api')
-        self.tempo_user = config.get('tempo_user')
-        self.tempo_password = config.get('tempo_password')
-        self.session = self.init_session()
+        self.tempo_url = config.get('tempo_url')
+        self.worklog_url = urljoin(self.tempo_url, 'worklogs')
+        self.jira_api_token = config.get('jira_api_token')
+        self.tempo_api_token = config.get('tempo_api_token')
+        self.jira_account_email = config.get('jira_account_email')
+        self.jira_session, self.account_id = self.init_jira_session()
+        self.tempo_session = self.init_tempo_session()
 
-    def init_session(self):
+    def init_jira_session(self):
         session = requests.Session()
-        session.auth = (self.tempo_user, self.tempo_password)
+        session.headers.update({
+            "Accept": "application/json",
+        })
+        session.auth = HTTPBasicAuth(
+            self.jira_account_email,
+            self.jira_api_token
+        )
 
-        api = self.jira_url + 'rest/api/2'
-        resp = session.get('%s/myself' % api)
-        if resp.ok:
-            return session
+        resp = session.get(urljoin(self.jira_url, 'rest/api/3/myself'))
+        if resp.status_code == 200:
+            return session, resp.json()["accountId"]
         elif resp.status_code == 401:
-            raise Exception("Error: Incorrect password or username.")
+            raise Exception("Error: Jira authentication failed.")
         elif resp.status_code == 403:
             raise Exception(
                 "Jira credentials seems to be correct, but this user does "
@@ -55,51 +66,52 @@ class JiraClient(object):
                 " Jira gave %s status code." % resp.status_code
             )
 
-    def get_issue(self, issue):
-        url = self.jira_url.rstrip('/') + '/rest/api/latest/issue/' + issue
-        return self.session.get(url)
+    def init_tempo_session(self):
+        session = requests.Session()
+        session.headers.update({
+            "Accept": "application/json",
+            "Authorization": f"Bearer {self.tempo_api_token}"
+        })
 
-    def check_issue(self, issue):
-        response = self.get_issue(issue)
-        result = {
-            'ok': True,
-            'errors': '',
-        }
-        if not response.ok:
-            # we get something like this
-            # {"errorMessages": ["Issue Does Not Exist"],"errors": {}}
-            result = {
-                'ok': False,
-                'errors': ','.join(response.json()['errorMessages'])
-            }
-        return result
+        resp = session.get(urljoin(self.tempo_url, f"accounts/{self.account_id}"))
+        if resp.status_code == 200:
+            return session
+        elif resp.status_code == 401:
+            raise Exception("Error: Tempo authentication failed.")
+        else:
+            raise Exception(
+                "Something went wrong,"
+                " Tempo gave %s status code." % resp.status_code
+            )
+
+    def get_issue(self, issue, fields="*all"):
+        url = urljoin(self.jira_url, f'rest/api/latest/issue/{issue}')
+        return self.jira_session.get(url, params={"fields": fields})
 
     def get_worklogs(self, date_window):
-        params = {
-            'jira_url': self.jira_url,
-            'tempo_api': self.tempo_api,
-            'date_from': date_window.start.date().isoformat(),
-            'date_to': date_window.stop.date().isoformat(),
-            'tempo_user': self.tempo_user,
-        }
-
-        url = "{jira_url}{tempo_api}worklogs" \
-              "?username={tempo_user}&dateFrom={date_from}&dateTo={date_to}"
-
-        response = self.session.get(url.format(**params))
+        url = urljoin(self.worklog_url, f"user/{self.account_id}")
+        response = self.tempo_session.get(
+            url,
+            params={
+                "from": date_window.start.date().isoformat(),
+                "to": date_window.stop.date().isoformat(),
+                "offset": 0,
+                "limit": 9999
+            }
+        )
 
         if response.status_code == 200:
-            entries = json.loads(response.text)
+            entries = response.json()["results"]
             worklogs = []
 
             for entry in entries:
                 worklogs.append(
                     MultiLog(
-                        entry['id'],
-                        entry['issue']['key'],
+                        entry['issue']['id'],
+                        None,  # Populated later
                         entry['timeSpentSeconds'],
-                        parser.parse(entry['dateStarted']).date(),
-                        entry['comment']
+                        parser.parse(entry['startDate']).date(),
+                        entry['description']
                     )
                 )
 
@@ -112,38 +124,44 @@ class JiraClient(object):
                 ))
 
     def create_worklog(self, worklog):
-        params = {
-            'jira_url': self.jira_url,
-            'tempo_api': self.tempo_api
-        }
-        url = "{jira_url}{tempo_api}worklogs/"
         values = {
-            "issue": {
-                "key": worklog.issue,
-                "remainingEstimateSeconds": 0
-            },
-            "author": {
-                "name": self.tempo_user
-            },
-            "comment": worklog.comment,
-            "dateStarted": worklog.date.strftime('%Y-%m-%dT02:00:00.000+0000'),
+            "issueId": worklog.id,
+            "authorAccountId": self.account_id,
+            "description": worklog.comment,
+            "startDate": worklog.date.strftime('%Y-%m-%d'),
+            "startTime": "02:00:00",
             "timeSpentSeconds": worklog.duration
         }
 
-        return self.session.post(
-            url.format(**params),
+        return self.tempo_session.post(
+            self.worklog_url,
             json=values,
-            headers={"Content-Type": "application/json"}
         )
 
     def delete_worklog(self, worklog):
-        params = {
-            'jira_url': self.jira_url,
-            'tempo_api': self.tempo_api,
-            'id': worklog.id
-        }
-        url = "{jira_url}{tempo_api}worklogs/{id}/"
-        return self.session.delete(url.format(**params))
+        url = urljoin(self.worklog_url, worklog.id)
+        return self.tempo_session.delete(url)
+
+    def populate_issue_field(self, logs):
+        new_logs = []
+        errors = defaultdict(list)
+        for log in logs:
+            if log[0] is not None:
+                issue = log[0]
+            elif log[1] is not None:
+                issue = log[1]
+            else:
+                continue
+
+            res = self.get_issue(issue, "id,key")
+            if res.status_code == 200:
+                fields = res.json()["fields"]
+                log[0], log[1] = fields["id"], fields["key"]
+                new_logs.append(log)
+            else:
+                errors[res.reason].append(log)
+
+        return new_logs, errors
 
     def repair_estimate(self, issue):
         response = self.get_issue(issue)
@@ -167,8 +185,7 @@ class JiraClient(object):
                     }
                 }
             }
-            url = self.jira_url.rstrip('/') + '/rest/api/latest/issue/' + issue
-            self.session.headers.update({"Content-Type": "application/json"})
-            put_response = self.session.put(url, json=payload)
+            url = urljoin(self.jira_url, f"/rest/api/latest/issue/{issue}")
+            put_response = self.jira_session.put(url, json=payload)
         except KeyError as e:
             raise Exception(f"repair_estimate: impossible to edit remaining estimate for {issue}. Check permissions and jira workflow. Maybe the `originalEstimate` field is not editable.")

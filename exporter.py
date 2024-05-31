@@ -93,12 +93,16 @@ class Utils:
         result = dict(config.items('gtimelog_exporter'))
         mandatory_fields = [
             'jira_url',
-            'tempo_api',
-            'tempo_user',
-            'odoo_url',
-            'odoo_db',
-            'odoo_user'
+            'tempo_url',
+            'jira_account_email',
         ]
+
+        if not (args.no_attendance or result.get('no_attendance')):
+            mandatory_fields.append([
+                'odoo_url',
+                'odoo_db',
+                'odoo_user'
+            ])
         if len(set(mandatory_fields) - set(result.keys())) > 0:
             raise Exception(
                 'Not all mandatory fields are present '
@@ -145,8 +149,8 @@ class Utils:
             print()
             print("Not matching - TO CHECK")
             print("")
-            for issue, reason in to_check.items():
-                print("  ", issue, ':', reason)
+            for reason, logs in to_check.items():
+                print("  ", reason, ':', ', '.join(log.issue for log in logs))
 
         if attendances is not None:
             print()
@@ -164,7 +168,7 @@ class Utils:
 
 def get_odoo_conf(config):
     odoo_config = config.copy()
-    odoo_password = env.get('ALL_PASSWORD') or env.get('ODOO_PASSWORD')
+    odoo_password = env.get('ODOO_PASSWORD')
     if not odoo_password:
         if args.no_interactive:
             raise Exception('Password missing in non-interactive, '
@@ -185,7 +189,7 @@ if __name__ == '__main__':
                         default=Utils.current_year(), type=int)
     parser.add_argument('--no-interactive', action='store_true')
     parser.add_argument('--no-attendance', action='store_true')
-    parser.add_argument('-r','--repair-estimate',
+    parser.add_argument('-r', '--repair-estimate',
                         default=False,
                         action='store_true',
                         help='The script will attempt to update the "Remaining Estimate", default is False')
@@ -205,14 +209,23 @@ if __name__ == '__main__':
     else:
         odoo_conf = get_odoo_conf(config)
 
-    tempo_password = env.get('ALL_PASSWORD') or env.get('TEMPO_PASSWORD')
-    if not tempo_password:
+    jira_api_token = env.get('JIRA_API_TOKEN')
+    if not jira_api_token:
         if args.no_interactive:
-            raise Exception('Password missing in non-interactive, '
-                            'set with TEMPO_PASSWORD')
-        tempo_password = getpass('Tempo (Jira) password: ')
+            raise Exception('Token missing in non-interactive, '
+                            'set with JIRA_API_TOKEN')
+        jira_api_token = getpass('Jira API token: ')
 
-    config['tempo_password'] = tempo_password
+    config['jira_api_token'] = jira_api_token
+
+    tempo_api_token = env.get('TEMPO_API_TOKEN')
+    if not tempo_api_token:
+        if args.no_interactive:
+            raise Exception('Token missing in non-interactive, '
+                            'set with TEMPO_API_TOKEN')
+        tempo_api_token = getpass('Tempo API token: ')
+
+    config['tempo_api_token'] = tempo_api_token
 
     not_before = datetime.strptime('2019-04-01', '%Y-%M-%d').date()
     if config['date_window'].start.date() < not_before:
@@ -221,36 +234,27 @@ if __name__ == '__main__':
 
     jira = JiraClient(config)
     jira_logs = jira.get_worklogs(config['date_window'])
+    jira_logs, jira_errors = jira.populate_issue_field(jira_logs)
 
     gt_parser = GtimelogParser(config)
     attendances, gt_logs = gt_parser.get_entries(config['date_window'])
+    gt_logs, gt_errors = jira.populate_issue_field(gt_logs)
 
     to_create = []
     to_delete = []
-    to_check = {}
 
-    for l in jira_logs:
-        if l not in gt_logs:
-            to_delete.append(l)
+    for log in jira_logs:
+        if log not in gt_logs:
+            to_delete.append(log)
 
-    for l in gt_logs:
-        if l not in jira_logs:
-            to_create.append(l)
+    for log in gt_logs:
+        if log not in jira_logs:
+            to_create.append(log)
 
-    # check issues exists
-    issues = set([x.issue for x in to_create])
-    for issue in issues:
-        checked = jira.check_issue(issue)
-        if not checked['ok']:
-            to_check[issue] = checked['errors']
-
-    # remove not matching
-    to_create = [x for x in to_create if x.issue not in to_check]
-
-    Utils.report(to_create, to_delete, to_check, attendances if not no_attendance else None)
+    Utils.report(to_create, to_delete, gt_errors, attendances if not no_attendance else None)
 
     nothing_to_do = False
-    if not to_check and not to_delete and not to_create:
+    if not gt_errors and not to_delete and not to_create:
         nothing_to_do = True
         print()
         print('All done, nothing to do.')
@@ -260,15 +264,15 @@ if __name__ == '__main__':
         confirmed = Utils.ask_confirmation()
 
     if args.no_interactive or confirmed:
-        for l in to_create:
-            jira.create_worklog(l)
+        for log in to_create:
+            jira.create_worklog(log)
 
-        for l in to_delete:
-            jira.delete_worklog(l)
+        for log in to_delete:
+            jira.delete_worklog(log)
 
         if repair_estimate:
             # Get a unique list of all the issues impacted
-            to_repair = set([l.issue for l in to_create] + [l.issue for l in to_delete])
+            to_repair = set([log.issue for log in to_create] + [log.issue for log in to_delete])
             for i in to_repair:
                 try:
                     jira.repair_estimate(i)
