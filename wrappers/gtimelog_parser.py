@@ -2,7 +2,7 @@ try:
     from gtimelog.settings import Settings
     from gtimelog.timelog import TimeLog
 except ImportError:
-    print('you have to install gtimelog first (pip install gtimelog)')
+    print("you have to install gtimelog first (pip install gtimelog)")
     raise
 
 from datetime import date
@@ -14,11 +14,12 @@ class GtimelogParser(object):
 
     def __init__(self, config):
         self.settings = Settings()
-        self.timelog = TimeLog(self.settings.get_timelog_file(),
-                               self.settings.virtual_midnight)
-        self.aliases = config.get('aliases', {})
-        self.line_format = config.get('line_format', '')
-        if self.line_format == 'categorized':
+        self.timelog = TimeLog(
+            self.settings.get_timelog_file(), self.settings.virtual_midnight
+        )
+        self.aliases = config.get("aliases", {})
+        self.line_format = config.get("line_format", "")
+        if self.line_format == "categorized":
             self.line_format_str = "category: task description | comment"
             self.delimiter = " "
         else:
@@ -26,9 +27,9 @@ class GtimelogParser(object):
             self.delimiter = ":"
 
     def skip_entry(self, entry):
-        if '**' in entry:
+        if "**" in entry:
             return True
-        if entry.strip() in ('arrive', 'arrived', 'start'):
+        if entry.strip() in ("arrive", "arrived", "start"):
             return True
         return False
 
@@ -37,7 +38,7 @@ class GtimelogParser(object):
 
         worklogs = []
         attendances = []
-        for start, stop, duration, tags, entry in window.all_entries():
+        for start, stop, duration, _tags, entry in window.all_entries():
             if self.skip_entry(entry):
                 continue
             if attendances and attendances[-1][1] == start:
@@ -45,21 +46,21 @@ class GtimelogParser(object):
             else:
                 attendances += [(start, stop)]
             # remove comments
-            line = entry.split('|')[0]
+            line = entry.split("|")[0]
             try:
                 # remove category
-                if self.line_format == 'categorized':
+                if self.line_format == "categorized":
                     # category is optional
-                    if ':' in line:
-                        line = line.split(':', 1)[1].strip()
+                    if ":" in line:
+                        line = line.split(":", 1)[1].strip()
                 issue, description = [
-                    x.strip() for x in line.split(self.delimiter, 1)
-                    if x.strip()
+                    x.strip() for x in line.split(self.delimiter, 1) if x.strip()
                 ]
             except ValueError:
                 print(
-                    'Entry must be in the format `{}`. '
-                    'Got '.format(self.line_format_str), entry
+                    "Entry must be in the format `{}`. "
+                    "Got ".format(self.line_format_str),
+                    entry,
                 )
                 continue
 
@@ -67,13 +68,15 @@ class GtimelogParser(object):
             # if we have an alias override it takes precedence
             if issue in self.aliases:
                 issue = self.aliases[issue]
-            worklogs.append(MultiLog(
-                None,
-                issue,
-                int(duration.total_seconds()),
-                start.date(),
-                description
-            ))
+            worklogs.append(
+                MultiLog(
+                    None,
+                    issue,
+                    int(duration.total_seconds()),
+                    start.date(),
+                    description,
+                )
+            )
 
         # Dangling attendance for today
         if attendances and attendances[-1][1].date() == date.today():

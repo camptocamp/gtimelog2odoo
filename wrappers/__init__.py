@@ -1,4 +1,1 @@
-from . import multi_log
-from . import jira_client
-from . import gtimelog_parser
-from . import odoo_client
+from . import gtimelog_parser, jira_client, multi_log, odoo_client
