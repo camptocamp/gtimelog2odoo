@@ -98,7 +98,7 @@ class Utils:
         ]
 
         if not (args.no_attendance or result.get('no_attendance')):
-            mandatory_fields.append([
+            mandatory_fields.extend([
                 'odoo_url',
                 'odoo_db',
                 'odoo_user'
