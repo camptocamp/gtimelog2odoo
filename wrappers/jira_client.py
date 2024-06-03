@@ -122,7 +122,7 @@ class JiraClient(object):
         }
 
         return self.tempo_session.post(
-            self.worklog_url,
+            self.worklog_create_url,
             json=values,
         )
 
