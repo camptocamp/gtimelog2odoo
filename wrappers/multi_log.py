@@ -1,6 +1,3 @@
-from collections import namedtuple
-
-
 class MultiLog:
 
     def __init__(self, _id, issue, duration, date, comment):
@@ -10,9 +7,7 @@ class MultiLog:
         self.date = date
         self.comment = comment
 
-    __slots__ = (
-        "id", "issue", "duration", "date", "comment"
-    )
+    __slots__ = ("id", "issue", "duration", "date", "comment")
 
     def _asdict(self):
         return {k: getattr(self, k) for k in ("issue", "duration", "date", "comment")}
@@ -32,7 +27,7 @@ class MultiLog:
         if duration:
             hours = int(duration // 3600)
             minutes = int(duration % 3600 / 60)
-        return '{}h {:02}m'.format(hours, minutes)
+        return "{}h {:02}m".format(hours, minutes)
 
     @property
     def jira_ref(self):

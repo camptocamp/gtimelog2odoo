@@ -1,31 +1,30 @@
 #!/usr/bin/env python3
 
 import argparse
-import sys
 import configparser
 import pathlib
-
+import sys
 from builtins import input
 from collections import namedtuple
-from datetime import datetime, date, timedelta
+from datetime import date, datetime, timedelta
 from getpass import getpass
+from itertools import groupby
 from os import environ as env
 from os.path import dirname, realpath
-from itertools import groupby
 
 try:
     from tzlocal import get_localzone
 except ImportError:
-    print('you have to install tzlocal (pip install tzlocal)')
+    print("you have to install tzlocal (pip install tzlocal)")
     sys.exit()
 
-from wrappers.jira_client import JiraClient
 from wrappers.gtimelog_parser import GtimelogParser
-from wrappers.odoo_client import OdooClient
+from wrappers.jira_client import JiraClient
 from wrappers.multi_log import MultiLog
+from wrappers.odoo_client import OdooClient
 
-DEFAULT_CONFIG_PATH = dirname(realpath(__file__)) + '/gtimelogrc'
-DateWindow = namedtuple('DateWindow', 'start stop')
+DEFAULT_CONFIG_PATH = dirname(realpath(__file__)) + "/gtimelogrc"
+DateWindow = namedtuple("DateWindow", "start stop")
 
 tz = get_localzone()
 utcnow = datetime.now(tz)
@@ -62,62 +61,56 @@ class Utils:
     @staticmethod
     def date_range_for_week(weeknumber, yearnumber):
         year = yearnumber or date.today().year
-        week = '%d %d 1' % (year, weeknumber)
+        week = "%d %d 1" % (year, weeknumber)
         weekstart = datetime.strptime(week, "%Y %W %w")
-        weekstop = weekstart + timedelta(days=6, hours=23, minutes=59,
-                                         seconds=59)
+        weekstop = weekstart + timedelta(days=6, hours=23, minutes=59, seconds=59)
         return weekstart, weekstop
 
     @staticmethod
     def ask_confirmation():
         print()
-        confirm = input('Confirm? (y/N) ')
-        return confirm.lower() in ('y', 'yes', 'sure')
+        confirm = input("Confirm? (y/N) ")
+        return confirm.lower() in ("y", "yes", "sure")
 
     @staticmethod
     def parse_config(args):
         config_file = pathlib.Path(args.config).expanduser().resolve()
         if not config_file.exists():
-            raise Exception(
-                "Configuration file %s does not exist." % config_file)
+            raise Exception("Configuration file %s does not exist." % config_file)
 
         config = configparser.ConfigParser()
         config.optionxform = str  # do not lowercase the aliases section!
         config.read(config_file)
 
-        if not config.has_section('gtimelog_exporter'):
+        if not config.has_section("gtimelog_exporter"):
             raise Exception(
                 "Section [gtimelog_exporter] is not present "
-                "in %s config file." % config_file)
+                "in %s config file." % config_file
+            )
 
-        result = dict(config.items('gtimelog_exporter'))
+        result = dict(config.items("gtimelog_exporter"))
         mandatory_fields = [
-            'jira_url',
-            'tempo_url',
-            'jira_account_email',
+            "jira_url",
+            "tempo_url",
+            "jira_account_email",
         ]
 
-        if not (args.no_attendance or result.get('no_attendance')):
-            mandatory_fields.append([
-                'odoo_url',
-                'odoo_db',
-                'odoo_user'
-            ])
+        if not (args.no_attendance or result.get("no_attendance")):
+            mandatory_fields.append(["odoo_url", "odoo_db", "odoo_user"])
         if len(set(mandatory_fields) - set(result.keys())) > 0:
             raise Exception(
-                'Not all mandatory fields are present '
-                'in %s config file.' % config_file)
+                "Not all mandatory fields are present "
+                "in %s config file." % config_file
+            )
 
         week, year = Utils.parse_week(args)
-        result['date_window'] = DateWindow(
-            *Utils.date_range_for_week(week, year)
-        )
-        result['tz_offset'] = tz_offset
+        result["date_window"] = DateWindow(*Utils.date_range_for_week(week, year))
+        result["tz_offset"] = tz_offset
 
-        if config.has_section('gtimelog_exporter:aliases'):
-            result['aliases'] = dict(config.items('gtimelog_exporter:aliases'))
+        if config.has_section("gtimelog_exporter:aliases"):
+            result["aliases"] = dict(config.items("gtimelog_exporter:aliases"))
         else:
-            result['aliases'] = {}
+            result["aliases"] = {}
 
         return result
 
@@ -150,94 +143,99 @@ class Utils:
             print("Not matching - TO CHECK")
             print("")
             for reason, logs in to_check.items():
-                print("  ", reason, ':', ', '.join(log.issue for log in logs))
+                print("  ", reason, ":", ", ".join(log.issue for log in logs))
 
         if attendances is not None:
             print()
             print("Odoo Attendances")
             print("================")
-            for day, day_attendances \
-                    in groupby(attendances, key=lambda e: e[0].date()):
+            for day, day_attendances in groupby(attendances, key=lambda e: e[0].date()):
                 print("{}".format(day))
                 for attendance in day_attendances:
-                    print("  {} → {}".format(
-                        attendance[0].time(),
-                        attendance[1] and attendance[1].time()
-                    ))
+                    print(
+                        "  {} → {}".format(
+                            attendance[0].time(), attendance[1] and attendance[1].time()
+                        )
+                    )
 
 
 def get_odoo_conf(config):
     odoo_config = config.copy()
-    odoo_password = env.get('ODOO_PASSWORD')
+    odoo_password = env.get("ODOO_PASSWORD")
     if not odoo_password:
         if args.no_interactive:
-            raise Exception('Password missing in non-interactive, '
-                            'set with ODOO_PASSWORD')
-        odoo_password = getpass('Odoo password: ')
-    odoo_config['odoo_password'] = odoo_password
+            raise Exception(
+                "Password missing in non-interactive, " "set with ODOO_PASSWORD"
+            )
+        odoo_password = getpass("Odoo password: ")
+    odoo_config["odoo_password"] = odoo_password
     return odoo_config
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="gtimelog_exporter options")
 
-    parser.add_argument('-c', '--config',
-                        default=DEFAULT_CONFIG_PATH, type=str)
-    parser.add_argument('-w', '--week',
-                        default=Utils.current_weeknumber(), type=int)
-    parser.add_argument('-y', '--year',
-                        default=Utils.current_year(), type=int)
-    parser.add_argument('--no-interactive', action='store_true')
-    parser.add_argument('--no-attendance', action='store_true')
-    parser.add_argument('-r', '--repair-estimate',
-                        default=False,
-                        action='store_true',
-                        help='The script will attempt to update the "Remaining Estimate", default is False')
+    parser.add_argument("-c", "--config", default=DEFAULT_CONFIG_PATH, type=str)
+    parser.add_argument("-w", "--week", default=Utils.current_weeknumber(), type=int)
+    parser.add_argument("-y", "--year", default=Utils.current_year(), type=int)
+    parser.add_argument("--no-interactive", action="store_true")
+    parser.add_argument("--no-attendance", action="store_true")
+    parser.add_argument(
+        "-r",
+        "--repair-estimate",
+        default=False,
+        action="store_true",
+        help='The script will attempt to update the "Remaining Estimate", default is False',
+    )
 
     args = parser.parse_args()
 
     config = Utils.parse_config(args)
 
-    no_attendance = args.no_attendance or config.get('no_attendance')
+    no_attendance = args.no_attendance or config.get("no_attendance")
     repair_estimate = args.repair_estimate
 
     if no_attendance:
         odoo_conf = {}
         print()
-        print('`--no-attendance` flag is ON -> Skipping Odoo attendances')
+        print("`--no-attendance` flag is ON -> Skipping Odoo attendances")
         print()
     else:
         odoo_conf = get_odoo_conf(config)
 
-    jira_api_token = env.get('JIRA_API_TOKEN')
+    jira_api_token = env.get("JIRA_API_TOKEN")
     if not jira_api_token:
         if args.no_interactive:
-            raise Exception('Token missing in non-interactive, '
-                            'set with JIRA_API_TOKEN')
-        jira_api_token = getpass('Jira API token: ')
+            raise Exception(
+                "Token missing in non-interactive, " "set with JIRA_API_TOKEN"
+            )
+        jira_api_token = getpass("Jira API token: ")
 
-    config['jira_api_token'] = jira_api_token
+    config["jira_api_token"] = jira_api_token
 
-    tempo_api_token = env.get('TEMPO_API_TOKEN')
+    tempo_api_token = env.get("TEMPO_API_TOKEN")
     if not tempo_api_token:
         if args.no_interactive:
-            raise Exception('Token missing in non-interactive, '
-                            'set with TEMPO_API_TOKEN')
-        tempo_api_token = getpass('Tempo API token: ')
+            raise Exception(
+                "Token missing in non-interactive, " "set with TEMPO_API_TOKEN"
+            )
+        tempo_api_token = getpass("Tempo API token: ")
 
-    config['tempo_api_token'] = tempo_api_token
+    config["tempo_api_token"] = tempo_api_token
 
-    not_before = datetime.strptime('2019-04-01', '%Y-%M-%d').date()
-    if config['date_window'].start.date() < not_before:
-        raise Exception('This script is not intended to manage attendences '
-                        'prior to April 1st, 2019')
+    not_before = datetime.strptime("2019-04-01", "%Y-%M-%d").date()
+    if config["date_window"].start.date() < not_before:
+        raise Exception(
+            "This script is not intended to manage attendences "
+            "prior to April 1st, 2019"
+        )
 
     jira = JiraClient(config)
-    jira_logs = jira.get_worklogs(config['date_window'])
+    jira_logs = jira.get_worklogs(config["date_window"])
     jira_logs, jira_errors = jira.populate_issue_field(jira_logs)
 
     gt_parser = GtimelogParser(config)
-    attendances, gt_logs = gt_parser.get_entries(config['date_window'])
+    attendances, gt_logs = gt_parser.get_entries(config["date_window"])
     gt_logs, gt_errors = jira.populate_issue_field(gt_logs)
 
     to_create = []
@@ -251,13 +249,15 @@ if __name__ == '__main__':
         if log not in jira_logs:
             to_create.append(log)
 
-    Utils.report(to_create, to_delete, gt_errors, attendances if not no_attendance else None)
+    Utils.report(
+        to_create, to_delete, gt_errors, attendances if not no_attendance else None
+    )
 
     nothing_to_do = False
     if not gt_errors and not to_delete and not to_create:
         nothing_to_do = True
         print()
-        print('All done, nothing to do.')
+        print("All done, nothing to do.")
 
     confirmed = False
     if not nothing_to_do:
@@ -272,7 +272,9 @@ if __name__ == '__main__':
 
         if repair_estimate:
             # Get a unique list of all the issues impacted
-            to_repair = set([log.issue for log in to_create] + [log.issue for log in to_delete])
+            to_repair = set(
+                [log.issue for log in to_create] + [log.issue for log in to_delete]
+            )
             for i in to_repair:
                 try:
                     jira.repair_estimate(i)
@@ -281,6 +283,6 @@ if __name__ == '__main__':
 
         if not no_attendance:
             odoo = OdooClient(odoo_conf)
-            odoo.drop_attendances(config['date_window'])
+            odoo.drop_attendances(config["date_window"])
             for attendance in attendances:
                 odoo.create_attendance(attendance[0], attendance[1])
