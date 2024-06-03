@@ -31,12 +31,13 @@ class JiraClient(object):
     def __init__(self, config: dict):
         self.jira_url = config.get('jira_url')
         self.tempo_url = config.get('tempo_url')
-        self.worklog_url = urljoin(self.tempo_url, 'worklogs')
         self.jira_api_token = config.get('jira_api_token')
         self.tempo_api_token = config.get('tempo_api_token')
         self.jira_account_email = config.get('jira_account_email')
         self.jira_session, self.account_id = self.init_jira_session()
         self.tempo_session = self.init_tempo_session()
+        self.worklog_url = urljoin(self.tempo_url, f'worklogs/user/{self.account_id}')
+        self.worklog_create_url = urljoin(self.tempo_url, 'worklogs')
 
     def init_jira_session(self):
         session = requests.Session()
@@ -47,7 +48,6 @@ class JiraClient(object):
             self.jira_account_email,
             self.jira_api_token
         )
-
         resp = session.get(urljoin(self.jira_url, 'rest/api/3/myself'))
         if resp.status_code == 200:
             return session, resp.json()["accountId"]
@@ -72,24 +72,14 @@ class JiraClient(object):
             "Accept": "application/json",
             "Authorization": f"Bearer {self.tempo_api_token}"
         })
-
-        resp = session.get(urljoin(self.tempo_url, f"accounts/{self.account_id}"))
-        if resp.status_code == 200:
-            return session
-        elif resp.status_code == 401:
-            raise Exception("Error: Tempo authentication failed.")
-        else:
-            raise Exception(
-                "Something went wrong,"
-                " Tempo gave %s status code." % resp.status_code
-            )
+        return session
 
     def get_issue(self, issue, fields="*all"):
         url = urljoin(self.jira_url, f'rest/api/latest/issue/{issue}')
         return self.jira_session.get(url, params={"fields": fields})
 
     def get_worklogs(self, date_window):
-        url = urljoin(self.worklog_url, f"user/{self.account_id}")
+        url = self.worklog_url
         response = self.tempo_session.get(
             url,
             params={
@@ -99,11 +89,9 @@ class JiraClient(object):
                 "limit": 9999
             }
         )
-
         if response.status_code == 200:
             entries = response.json()["results"]
             worklogs = []
-
             for entry in entries:
                 worklogs.append(
                     MultiLog(
@@ -146,17 +134,14 @@ class JiraClient(object):
         new_logs = []
         errors = defaultdict(list)
         for log in logs:
-            if log[0] is not None:
-                issue = log[0]
-            elif log[1] is not None:
-                issue = log[1]
-            else:
-                continue
-
-            res = self.get_issue(issue, "id,key")
+            res = self.get_issue(log.jira_ref, "id,key")
             if res.status_code == 200:
-                fields = res.json()["fields"]
-                log[0], log[1] = fields["id"], fields["key"]
+                data = res.json()
+                # Ensure both keys are properly set
+                # as this log entry can come from gtimelog (no id)
+                # or from tempo api (no key)
+                log.id = data["id"]
+                log.issue = data["key"]
                 new_logs.append(log)
             else:
                 errors[res.reason].append(log)

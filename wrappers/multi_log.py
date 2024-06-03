@@ -1,13 +1,25 @@
 from collections import namedtuple
 
 
-class MultiLog(namedtuple('MultiLog', 'id issue duration date comment')):
+class MultiLog:
+
+    def __init__(self, _id, issue, duration, date, comment):
+        self.id = int(_id) if _id else None
+        self.issue = issue
+        self.duration = duration
+        self.date = date
+        self.comment = comment
+
+    __slots__ = (
+        "id", "issue", "duration", "date", "comment"
+    )
+
+    def _asdict(self):
+        return {k: getattr(self, k) for k in ("issue", "duration", "date", "comment")}
 
     def __eq__(self, other):
         d1 = self._asdict()
-        del d1['id']
         d2 = other._asdict()
-        del d2['id']
         return d1 == d2
 
     @property
@@ -21,3 +33,10 @@ class MultiLog(namedtuple('MultiLog', 'id issue duration date comment')):
             hours = int(duration // 3600)
             minutes = int(duration % 3600 / 60)
         return '{}h {:02}m'.format(hours, minutes)
+
+    @property
+    def jira_ref(self):
+        # When loaded from gtimelog we don't have the ID
+        if self.id:
+            return self.id
+        return self.issue
