@@ -11,6 +11,7 @@ respectively to Odoo and Jira.
 * -w : Week number to synchronize (default: current week /!\ Python based)
 * -y : Year of the week to synchronize (default: current year)
 * --no-interactive : Do not prompt for passwords or confirmations
+* --no-attendance : Do not push attendances in Odoo
 
 TIP: Week number can be a negative number like -1 to use previous week.
 The year will be computed automatically based on current year.
@@ -36,14 +37,13 @@ Each alias is a key/value combination:
 
 ### Passwords
 
-Upon script execution, you will be prompted for your Odoo and Jira passwords.
+Upon script execution, you will be prompted for your Odoo password and Jira/Tempo tokens.
 
-You can also use `ODOO_PASSWORD` and `TEMP_PASSWORD` environment variables to pass to the script.
-If both passwords are the same, you can use the environment variable `ALL_PASSWORD`.
+You can also use `ODOO_PASSWORD`, `JIRA_API_TOKEN` and `TEMPO_API_TOKEN` environment variables to pass to the script.
 In case the flag non-interactive is set, it is mandatory to use environment variables.
 
 TIP: copy `set_passwords.example` to `set_passwords` and modify it according to your LP passwords.
-Then run it to set both passwords on the fly with:
+Then run it to set all credentials on the fly with:
 
 ```
 . ./set_passwords

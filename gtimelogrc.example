@@ -1,7 +1,7 @@
 [gtimelog_exporter]
 jira_url = https://jira.mydomain.com/
-tempo_api = rest/tempo-timesheets/3/
-tempo_user = my-user
+tempo_url = https://api.tempo.io/4
+jira_account_email = toto@example.com
 odoo_url = https://odoo.mydomain.com/
 odoo_port = 443
 odoo_protocol = jsonrpc+ssl
