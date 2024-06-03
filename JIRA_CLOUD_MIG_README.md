@@ -41,5 +41,11 @@ Modify your `gtimelogrc` like
     tempo_url = https://api.tempo.io/4/
     jira_account_email = me.work@camptocamp.com
 ```
+## Update gtimelog2odoo
+
+```
+    git pull gtimelog2odoo
+    pip install odoorpc
+```
 
 Now you are ready to go! :)
