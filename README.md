@@ -35,6 +35,13 @@ You can add as many aliases as you want in the corresponding configuration file 
 Each alias is a key/value combination:
 > daily_alias = BSDEV-42
 
+### Internal issue references
+
+Blacklisted issue prefixes are used to avoid adding 'to dispatch' time on such entries
+
+You can add as many issue prefixes as you want in the corresponding configuration file section.
+> dispatch_blacklist_prefixes = BS-,BSRD-,ABCH-,ABFR-
+
 ### Passwords
 
 Upon script execution, you will be prompted for your Odoo password and Jira/Tempo tokens.
@@ -69,6 +76,10 @@ Where
 if `line_format` is `categorized`
 * (opt) "category" for instance a project name it won't be pushed
 
+if `description` contains a `++` sign, then this line will be
+considered as a dispatch line (i.e. duration will be equally added to all
+the non blacklisted entries)
+
 configuration option:
 
 
@@ -78,6 +89,8 @@ configuration option:
   > BSMP-42: Investigate issue
 * Log work to task aliased by `daily` with description "Daily Meeting"
   > daily: Daily Meeting
+* Log work to dispatch with description "Daily Meeting ++"
+  > daily: Daily Meeting ++
 
 ## Roadmap
 
