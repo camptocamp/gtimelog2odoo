@@ -3,15 +3,16 @@ from collections import namedtuple
 
 class MultiLog:
 
-    def __init__(self, _id, issue, duration, date, comment):
+    def __init__(self, _id, issue, duration, date, time, comment):
         self.id = int(_id) if _id else None
         self.issue = issue
         self.duration = duration
         self.date = date
+        self.time = time
         self.comment = comment
 
     __slots__ = (
-        "id", "issue", "duration", "date", "comment"
+        "id", "issue", "duration", "date", "time", "comment"
     )
 
     def _asdict(self):

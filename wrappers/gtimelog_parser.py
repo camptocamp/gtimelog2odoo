@@ -72,6 +72,7 @@ class GtimelogParser(object):
                 issue,
                 int(duration.total_seconds()),
                 start.date(),
+                start.time(),
                 description
             ))
 

@@ -99,6 +99,7 @@ class JiraClient(object):
                         None,  # Populated later
                         entry['timeSpentSeconds'],
                         parser.parse(entry['startDate']).date(),
+                        parser.parse(entry['startTime']).time(),
                         entry['description']
                     )
                 )
@@ -113,11 +114,11 @@ class JiraClient(object):
 
     def create_worklog(self, worklog):
         values = {
-            "issueId": worklog.id,
+            "issueId": worklog.issue,
             "authorAccountId": self.account_id,
             "description": worklog.comment,
             "startDate": worklog.date.strftime('%Y-%m-%d'),
-            "startTime": "02:00:00",
+            "startTime":  worklog.time.strftime('%H:%M:%S'),
             "timeSpentSeconds": worklog.duration
         }
 
