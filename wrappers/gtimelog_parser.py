@@ -1,6 +1,6 @@
 try:
     from gtimelog.settings import Settings
-    from gtimelog.timelog import TimeLog
+    from gtimelog.timelog import TimeLog, parse_datetime
 except ImportError:
     print('you have to install gtimelog first (pip install gtimelog)')
     raise
@@ -10,11 +10,34 @@ from datetime import date
 from .multi_log import MultiLog
 
 
+class UnforgivingTimelog(TimeLog):
+    def _read(self, f):
+        items = []
+        last_time = None
+        for line in f:
+            time, sep, entry = line.partition(': ')
+            if not sep:
+                continue
+            try:
+                time = parse_datetime(time)
+            except ValueError:
+                continue
+            entry = entry.strip()
+            items.append((time, entry))
+            if last_time and time <= last_time:
+                print(
+                    f"""Your timelog file is not ordered:
+                      previous entry: {items[-2]}
+                      current entry: {items[-1]}
+                    """)
+            last_time = time
+        return items
+
 class GtimelogParser(object):
 
     def __init__(self, config):
         self.settings = Settings()
-        self.timelog = TimeLog(self.settings.get_timelog_file(),
+        self.timelog = UnforgivingTimelog(self.settings.get_timelog_file(),
                                self.settings.virtual_midnight)
         self.aliases = config.get('aliases', {})
         self.line_format = config.get('line_format', '')
