@@ -38,6 +38,9 @@ class JiraClient(object):
         self.tempo_session = self.init_tempo_session()
         self.worklog_url = urljoin(self.tempo_url, f'worklogs/user/{self.account_id}')
         self.worklog_create_url = urljoin(self.tempo_url, 'worklogs')
+        self.timesheet_get_reviewers_url = urljoin(self.tempo_url, f'timesheet-approvals/user/{self.account_id}/reviewers')
+        self.timesheet_state_url = urljoin(self.tempo_url, f"timesheet-approvals/user/{self.account_id}")
+        self.timesheet_submit_url = urljoin(self.tempo_url, f'timesheet-approvals/user/{self.account_id}/submit')
 
     def init_jira_session(self):
         session = requests.Session()
@@ -78,16 +81,24 @@ class JiraClient(object):
         url = urljoin(self.jira_url, f'rest/api/latest/issue/{issue}')
         return self.jira_session.get(url, params={"fields": fields})
 
+    def _prepare_params_from_date_window(self, date_window):
+        return {
+            "from": date_window.start.date().isoformat(),
+            "to": date_window.stop.date().isoformat(),
+        }
+
     def get_worklogs(self, date_window):
         url = self.worklog_url
+        params = self._prepare_params_from_date_window(date_window)
+        params.update(
+            {
+                "offset": 0,
+                "limit": 9999,
+            }
+        )
         response = self.tempo_session.get(
             url,
-            params={
-                "from": date_window.start.date().isoformat(),
-                "to": date_window.stop.date().isoformat(),
-                "offset": 0,
-                "limit": 9999
-            }
+            params=params
         )
         if response.status_code == 200:
             entries = response.json()["results"]
@@ -174,3 +185,33 @@ class JiraClient(object):
             put_response = self.jira_session.put(url, json=payload)
         except KeyError as e:
             raise Exception(f"repair_estimate: impossible to edit remaining estimate for {issue}. Check permissions and jira workflow. Maybe the `originalEstimate` field is not editable.")
+
+    def get_reviewers(self):
+        response = self.tempo_session.get(self.timesheet_get_reviewers_url)
+        res = {}
+        for index, rev_data in enumerate(response.json()["results"]):
+            resp = self.jira_session.get(rev_data["self"])
+            res[f"{index + 1}"] = {"name": resp.json()["displayName"], "accountId": rev_data["accountId"]}
+        return res
+
+    def get_timesheet_state(self, date_window):
+        response = self.tempo_session.get(
+            self.timesheet_state_url,
+            params=self._prepare_params_from_date_window(date_window),
+        )
+        response.raise_for_status()
+        return response.json()["status"]["key"]
+
+    def submit_timesheet(self, date_window, reviewer_id, comment=None):
+        content = {
+            "reviewerAccountId": reviewer_id,
+        }
+        if comment is not None:
+            content["comment"] = comment
+        response = self.tempo_session.post(
+            self.timesheet_submit_url,
+            params=self._prepare_params_from_date_window(date_window),
+            json=content
+        )
+        response.raise_for_status()
+        return True
