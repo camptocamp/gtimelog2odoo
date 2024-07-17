@@ -74,6 +74,27 @@ class Utils:
         confirm = input('Confirm? (y/N) ')
         return confirm.lower() in ('y', 'yes', 'sure')
 
+    def ask_submit_timesheet():
+        print()
+        confirm = input('Submit timesheet? (Y/n)')
+        return confirm.lower() in ('y', 'yes', 'sure', '')
+
+    @staticmethod
+    def select_reviewer(reviewers):
+        print()
+        input_message = "Choose a reviewer:\n"
+        user_input = "0"
+        for index, rev_data in reviewers.items():
+            input_message += f'[{index}] {rev_data["name"]}\n'
+        input_message += "Your choice: "
+        while user_input not in reviewers:
+            user_input = input(input_message)
+        return reviewers[user_input]
+
+    def request_comment():
+        print()
+        return input('Enter any comment needed for timesheet submission:')
+
     @staticmethod
     def parse_config(args):
         config_file = pathlib.Path(args.config).expanduser().resolve()
@@ -189,6 +210,7 @@ if __name__ == '__main__':
                         default=Utils.current_year(), type=int)
     parser.add_argument('--no-interactive', action='store_true')
     parser.add_argument('--no-attendance', action='store_true')
+    parser.add_argument('--select-reviewer', default=False, action='store_true')
     parser.add_argument('-r', '--repair-estimate',
                         default=False,
                         action='store_true',
@@ -284,3 +306,23 @@ if __name__ == '__main__':
             odoo.drop_attendances(config['date_window'])
             for attendance in attendances:
                 odoo.create_attendance(attendance[0], attendance[1])
+
+    ts_state = jira.get_timesheet_state(config['date_window'])
+    submit = False
+    if ts_state == "OPEN":
+        submit = Utils.ask_submit_timesheet()
+    if submit:
+        cfg_reviewer_key = "tempo_reviewer_id"
+        select_reviewer = args.select_reviewer
+        reviewer = config.get(cfg_reviewer_key)
+        if not reviewer or select_reviewer:
+            reviewers = jira.get_reviewers()
+            selected = Utils.select_reviewer(reviewers)
+            reviewer = selected.get("accountId")
+            print()
+            print("Please add following line to your gtimelogrc (in gtimelog_exporter section) to avoid having to select a reviewer the next time:\n")
+            print(f"{cfg_reviewer_key} = {reviewer}")
+        comment = Utils.request_comment()
+        res = jira.submit_timesheet(config['date_window'], reviewer, comment=comment)
+        if res:
+            print("Your Timesheet was submitted successfully")
