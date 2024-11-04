@@ -6,6 +6,7 @@ __pycache__/
 *.~*
 
 # local config file
-gtimelogrc
+/gtimelogrc
 
-set_passwords
+/set_passwords
+/venv
