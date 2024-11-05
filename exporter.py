@@ -211,6 +211,9 @@ if __name__ == '__main__':
     parser.add_argument('--no-interactive', action='store_true')
     parser.add_argument('--no-attendance', action='store_true')
     parser.add_argument('--select-reviewer', default=False, action='store_true')
+    parser.add_argument('-f', '--auto-submit',
+                        default='ask', type=str,
+                        help='The script will submit the timesheet after import default is "ask". Can be yes, no, or ask')
     parser.add_argument('-r', '--repair-estimate',
                         default=False,
                         action='store_true',
@@ -221,7 +224,8 @@ if __name__ == '__main__':
     config = Utils.parse_config(args)
 
     no_attendance = args.no_attendance or config.get('no_attendance')
-    repair_estimate = args.repair_estimate
+    repair_estimate = args.repair_estimate or config.get('repair_estimate')
+    auto_submit = args.auto_submit or config.get('auto_submit')
 
     if no_attendance:
         odoo_conf = {}
@@ -310,7 +314,12 @@ if __name__ == '__main__':
     ts_state = jira.get_timesheet_state(config['date_window'])
     submit = False
     if ts_state == "OPEN":
-        submit = Utils.ask_submit_timesheet()
+        if auto_submit == 'ask':
+            submit = Utils.ask_submit_timesheet()
+        elif auto_submit == 'yes':
+            submit = True
+        elif auto_submit == 'no':
+            submit = False
     if submit:
         cfg_reviewer_key = "tempo_reviewer_id"
         select_reviewer = args.select_reviewer

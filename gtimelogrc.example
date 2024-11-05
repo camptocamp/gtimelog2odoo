@@ -8,6 +8,12 @@ odoo_protocol = jsonrpc+ssl
 odoo_db = awesome_db_name
 odoo_user = my-user
 line_format = standard
+no_attendance = 0
+repair_estimate = 0
+
+# auto_submit can be 'ask' (default) 'no', or 'yes'.
+# wether to submit the timesheet after importing gtimesheets into odoo.
+#auto_submit = ask
 
 [gtimelog_exporter:aliases]
 my-alias = ABC-42
