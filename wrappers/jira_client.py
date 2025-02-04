@@ -29,8 +29,10 @@ class JiraClient(object):
         return " ".join(jira_time) if jira_time else "0s"
 
     def __init__(self, config: dict):
-        self.jira_url = config.get('jira_url')
-        self.tempo_url = config.get('tempo_url')
+        # Ensure the url ends with a slash otherwise the urljoin will mess up
+        # (in case you forget to read the docs and you don't put the slash in the config ;P)
+        self.jira_url = config.get('jira_url', '').rstrip("/") + "/"
+        self.tempo_url = config.get('tempo_url', '').rstrip("/") + "/"
         self.jira_api_token = config.get('jira_api_token')
         self.tempo_api_token = config.get('tempo_api_token')
         self.jira_account_email = config.get('jira_account_email')
