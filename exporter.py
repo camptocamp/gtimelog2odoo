@@ -210,6 +210,7 @@ if __name__ == '__main__':
                         default=Utils.current_year(), type=int)
     parser.add_argument('--no-interactive', action='store_true')
     parser.add_argument('--no-attendance', action='store_true')
+    parser.add_argument('--submit', action='store_true')
     parser.add_argument('--select-reviewer', default=False, action='store_true')
     parser.add_argument('-r', '--repair-estimate',
                         default=False,
@@ -221,6 +222,7 @@ if __name__ == '__main__':
     config = Utils.parse_config(args)
 
     no_attendance = args.no_attendance or config.get('no_attendance')
+    do_submit = args.submit
     repair_estimate = args.repair_estimate
 
     if no_attendance:
@@ -309,7 +311,7 @@ if __name__ == '__main__':
 
     ts_state = jira.get_timesheet_state(config['date_window'])
     submit = False
-    if ts_state == "OPEN":
+    if ts_state == "OPEN" and do_submit:
         submit = Utils.ask_submit_timesheet()
     if submit:
         cfg_reviewer_key = "tempo_reviewer_id"
