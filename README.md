@@ -22,6 +22,10 @@ it will push week 51 of 2019.
 
 If you want to skip attendances you can use `--no-attendance` or set `no_attendance = 1` in `gtimelogrc`.
 
+## Submit
+
+To submit TS to JIRA, use `--submit` option.
+
 ## Configuration file
 
 By default, the script will look for the configuration file in the same folder as itself.
