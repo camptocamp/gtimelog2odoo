@@ -134,10 +134,15 @@ class JiraClient(object):
             "timeSpentSeconds": worklog.duration
         }
 
-        return self.tempo_session.post(
+        response = self.tempo_session.post(
             self.worklog_create_url,
             json=values,
         )
+        if response.ok:
+            return response
+        else:
+            raise Exception(
+                f'Error when creating workkog: {response.status_code} {response.text}')
 
     def delete_worklog(self, worklog):
         url = urljoin(self.worklog_url, worklog.id)
