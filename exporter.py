@@ -74,6 +74,7 @@ class Utils:
         confirm = input('Confirm? (y/N) ')
         return confirm.lower() in ('y', 'yes', 'sure')
 
+    @staticmethod
     def ask_submit_timesheet():
         print()
         confirm = input('Submit timesheet? (Y/n)')
@@ -91,6 +92,7 @@ class Utils:
             user_input = input(input_message)
         return reviewers[user_input]
 
+    @staticmethod
     def request_comment():
         print()
         return input('Enter any comment needed for timesheet submission:')
@@ -187,11 +189,11 @@ class Utils:
                     ))
 
 
-def get_odoo_conf(config):
+def get_odoo_conf(config, no_interactive):
     odoo_config = config.copy()
     odoo_password = env.get('ODOO_PASSWORD')
     if not odoo_password:
-        if args.no_interactive:
+        if no_interactive:
             raise Exception('Password missing in non-interactive, '
                             'set with ODOO_PASSWORD')
         odoo_password = getpass('Odoo password: ')
@@ -231,7 +233,7 @@ if __name__ == '__main__':
         print('`--no-attendance` flag is ON -> Skipping Odoo attendances')
         print()
     else:
-        odoo_conf = get_odoo_conf(config)
+        odoo_conf = get_odoo_conf(config, args.no_interactive)
 
     jira_api_token = env.get('JIRA_API_TOKEN')
     if not jira_api_token:
