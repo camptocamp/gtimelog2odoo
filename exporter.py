@@ -3,15 +3,13 @@
 import argparse
 import sys
 import configparser
-import pathlib
 
-from builtins import input
 from collections import namedtuple
 from datetime import datetime, date, timedelta
 from getpass import getpass
-from os import environ as env
-from os.path import dirname, realpath
 from itertools import groupby
+from os import getenv
+from pathlib import Path
 
 try:
     from tzlocal import get_localzone
@@ -24,7 +22,7 @@ from wrappers.gtimelog_parser import GtimelogParser
 from wrappers.odoo_client import OdooClient
 from wrappers.multi_log import MultiLog
 
-DEFAULT_CONFIG_PATH = dirname(realpath(__file__)) + '/gtimelogrc'
+DEFAULT_CONFIG_PATH = Path(__file__).parent / 'gtimelogrc'
 DateWindow = namedtuple('DateWindow', 'start stop')
 
 tz = get_localzone()
@@ -74,6 +72,7 @@ class Utils:
         confirm = input('Confirm? (y/N) ')
         return confirm.lower() in ('y', 'yes', 'sure')
 
+    @staticmethod
     def ask_submit_timesheet():
         print()
         confirm = input('Submit timesheet? (Y/n)')
@@ -91,16 +90,16 @@ class Utils:
             user_input = input(input_message)
         return reviewers[user_input]
 
+    @staticmethod
     def request_comment():
         print()
         return input('Enter any comment needed for timesheet submission:')
 
     @staticmethod
     def parse_config(args):
-        config_file = pathlib.Path(args.config).expanduser().resolve()
+        config_file = Path(args.config).expanduser().resolve()
         if not config_file.exists():
-            raise Exception(
-                "Configuration file %s does not exist." % config_file)
+            raise Exception(f"Configuration file {config_file} does not exist.")
 
         config = configparser.ConfigParser()
         config.optionxform = str  # do not lowercase the aliases section!
@@ -109,7 +108,7 @@ class Utils:
         if not config.has_section('gtimelog_exporter'):
             raise Exception(
                 "Section [gtimelog_exporter] is not present "
-                "in %s config file." % config_file)
+                f"in {config_file} config file.")
 
         result = dict(config.items('gtimelog_exporter'))
         mandatory_fields = [
@@ -119,20 +118,14 @@ class Utils:
         ]
 
         if not (args.no_attendance or result.get('no_attendance')):
-            mandatory_fields.extend([
-                'odoo_url',
-                'odoo_db',
-                'odoo_user'
-            ])
-        if len(set(mandatory_fields) - set(result.keys())) > 0:
+            mandatory_fields.extend(['odoo_url', 'odoo_db', 'odoo_user'])
+        if any(fld not in result for fld in mandatory_fields):
             raise Exception(
                 'Not all mandatory fields are present '
-                'in %s config file.' % config_file)
+                f"in {config_file} config file.")
 
         week, year = Utils.parse_week(args)
-        result['date_window'] = DateWindow(
-            *Utils.date_range_for_week(week, year)
-        )
+        result['date_window'] = DateWindow(*Utils.date_range_for_week(week, year))
         result['tz_offset'] = tz_offset
 
         if config.has_section('gtimelog_exporter:aliases'):
@@ -146,7 +139,7 @@ class Utils:
     def _report_log(cls, logs):
         for day, day_logs in groupby(logs, key=lambda e: e.date):
             day_logs = tuple(day_logs)  # we have to iterate twice
-            day_duration = sum([d.duration for d in day_logs])
+            day_duration = sum(d.duration for d in day_logs)
             print("  ", day, "-", MultiLog._human_duration(day_duration))
             for issue, issue_logs in groupby(day_logs, key=lambda e: e.issue):
                 print("    ", issue)
@@ -177,8 +170,7 @@ class Utils:
             print()
             print("Odoo Attendances")
             print("================")
-            for day, day_attendances \
-                    in groupby(attendances, key=lambda e: e[0].date()):
+            for day, day_attendances in groupby(attendances, key=lambda e: e[0].date()):
                 print("{}".format(day))
                 for attendance in day_attendances:
                     print("  {} → {}".format(
@@ -189,7 +181,7 @@ class Utils:
 
 def get_odoo_conf(config):
     odoo_config = config.copy()
-    odoo_password = env.get('ODOO_PASSWORD')
+    odoo_password = getenv('ODOO_PASSWORD')
     if not odoo_password:
         if args.no_interactive:
             raise Exception('Password missing in non-interactive, '
@@ -199,7 +191,8 @@ def get_odoo_conf(config):
     return odoo_config
 
 
-if __name__ == '__main__':
+def main():
+    # 1. Configure
     parser = argparse.ArgumentParser(description="gtimelog_exporter options")
 
     parser.add_argument('-c', '--config',
@@ -218,7 +211,6 @@ if __name__ == '__main__':
                         help='The script will attempt to update the "Remaining Estimate", default is False')
 
     args = parser.parse_args()
-
     config = Utils.parse_config(args)
 
     no_attendance = args.no_attendance or config.get('no_attendance')
@@ -233,33 +225,30 @@ if __name__ == '__main__':
     else:
         odoo_conf = get_odoo_conf(config)
 
-    jira_api_token = env.get('JIRA_API_TOKEN')
+    jira_api_token = getenv('JIRA_API_TOKEN')
+    tempo_api_token = getenv('TEMPO_API_TOKEN')
+
     if not jira_api_token:
         if args.no_interactive:
             raise Exception('Token missing in non-interactive, '
                             'set with JIRA_API_TOKEN')
         jira_api_token = getpass('Jira API token: ')
 
-    config['jira_api_token'] = jira_api_token
-
-    tempo_api_token = env.get('TEMPO_API_TOKEN')
     if not tempo_api_token:
         if args.no_interactive:
             raise Exception('Token missing in non-interactive, '
                             'set with TEMPO_API_TOKEN')
         tempo_api_token = getpass('Tempo API token: ')
 
+    config['jira_api_token'] = jira_api_token
     config['tempo_api_token'] = tempo_api_token
 
-    not_before = datetime.strptime('2019-04-01', '%Y-%M-%d').date()
-    if config['date_window'].start.date() < not_before:
-        raise Exception('This script is not intended to manage attendences '
-                        'prior to April 1st, 2019')
-
+    # 2. Collect worklogs (TEMPO API) and link to issues (JIRA API)
     jira = JiraClient(config)
     jira_logs = jira.get_worklogs(config['date_window'])
     jira_logs, jira_errors = jira.populate_issue_field(jira_logs)
 
+    # 3. Collect GTimelog entries
     gt_parser = GtimelogParser(config)
     attendances, gt_logs = gt_parser.get_entries(config['date_window'])
     gt_logs, gt_errors = jira.populate_issue_field(gt_logs)
@@ -277,15 +266,13 @@ if __name__ == '__main__':
 
     Utils.report(to_create, to_delete, gt_errors, attendances if not no_attendance else None)
 
-    nothing_to_do = False
-    if not gt_errors and not to_delete and not to_create:
-        nothing_to_do = True
+    nothing_to_do = not (gt_errors or to_delete or to_create)
+    if nothing_to_do:
         print()
         print('All done, nothing to do.')
 
-    confirmed = False
-    if not nothing_to_do:
-        confirmed = Utils.ask_confirmation()
+    # 4. Create worklogs (TEMPO API) and repair (JIRA API) and create attendances (Odoo API)
+    confirmed = not nothing_to_do and Utils.ask_confirmation()
 
     if args.no_interactive or confirmed:
         for log in to_create:
@@ -309,6 +296,7 @@ if __name__ == '__main__':
             for attendance in attendances:
                 odoo.create_attendance(attendance[0], attendance[1])
 
+    # 5. Submit Timesheet (TEMPO API)
     ts_state = jira.get_timesheet_state(config['date_window'])
     submit = False
     if ts_state == "OPEN" and do_submit:
@@ -328,3 +316,7 @@ if __name__ == '__main__':
         res = jira.submit_timesheet(config['date_window'], reviewer, comment=comment)
         if res:
             print("Your Timesheet was submitted successfully")
+
+
+if __name__ == "__main__":
+    main()
