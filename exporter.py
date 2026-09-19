@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import argparse
-import sys
 import configparser
 import pathlib
 
@@ -13,12 +12,6 @@ from os import environ as env
 from os.path import dirname, realpath
 from itertools import groupby
 
-try:
-    from tzlocal import get_localzone
-except ImportError:
-    print('you have to install tzlocal (pip install tzlocal)')
-    sys.exit()
-
 from wrappers.jira_client import JiraClient
 from wrappers.gtimelog_parser import GtimelogParser
 from wrappers.odoo_client import OdooClient
@@ -26,10 +19,6 @@ from wrappers.multi_log import MultiLog
 
 DEFAULT_CONFIG_PATH = dirname(realpath(__file__)) + '/gtimelogrc'
 DateWindow = namedtuple('DateWindow', 'start stop')
-
-tz = get_localzone()
-utcnow = datetime.now(tz)
-tz_offset = utcnow.utcoffset().total_seconds()
 
 
 class Utils:
@@ -133,7 +122,6 @@ class Utils:
         result['date_window'] = DateWindow(
             *Utils.date_range_for_week(week, year)
         )
-        result['tz_offset'] = tz_offset
 
         if config.has_section('gtimelog_exporter:aliases'):
             result['aliases'] = dict(config.items('gtimelog_exporter:aliases'))

@@ -1,11 +1,18 @@
+from datetime import datetime, timedelta
+from urllib.parse import urlparse
+
 import odoorpc
 
-from datetime import timedelta
-from urllib.parse import urlparse
+try:
+    from tzlocal import get_localzone
+except ImportError:
+    get_localzone = None
 
 
 class OdooClient(object):
     def __init__(self, config):
+        if get_localzone is None:
+            raise Exception('Please install tzlocal (pip install tzlocal)')
         self.client = odoorpc.ODOO(
             host=urlparse(config.get("odoo_url", "")).netloc,
             protocol=config.get("odoo_protocol"),
@@ -16,9 +23,13 @@ class OdooClient(object):
             login=config.get("odoo_user"),
             password=config.get("odoo_password"),
         )
-        self.tz_offset = config.get("tz_offset")
         self._attendance_default = None
         self._uid = self._get_uid()
+
+    @staticmethod
+    def _get_tz_offset():
+        tz = get_localzone()
+        return datetime.now(tz=tz).utcoffset().total_seconds()
 
     def _get_uid(self):
         return self.client.env.uid
@@ -56,7 +67,7 @@ class OdooClient(object):
             print("Some Odoo attendances could not be updated, invoicing period probably closed !")
 
     def create_attendance(self, check_in, check_out):
-        delta = timedelta(seconds=self.tz_offset)
+        delta = timedelta(seconds=self._get_tz_offset())
         values = {
             "employee_id": self._attendance_defaults()["employee_id"],
             "check_in": (check_in - delta).strftime("%Y-%m-%d %H:%M:%S"),

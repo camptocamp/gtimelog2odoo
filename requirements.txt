@@ -4,4 +4,6 @@ odoorpc
 gtimelog
 python-dateutil
 requests
+
+; Optional: for Odoo attendances
 tzlocal
