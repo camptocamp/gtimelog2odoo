@@ -7,7 +7,7 @@ import pathlib
 
 from builtins import input
 from collections import namedtuple
-from datetime import datetime, date, timedelta
+from datetime import datetime, timedelta
 from getpass import getpass
 from os import environ as env
 from os.path import dirname, realpath
@@ -35,37 +35,30 @@ tz_offset = utcnow.utcoffset().total_seconds()
 class Utils:
 
     @staticmethod
-    def current_weeknumber():
-        return int(datetime.now().strftime("%W"))
+    def _parse_week(dtime):
+        year, week, dow = dtime.isocalendar()
+        return week, year
 
     @staticmethod
-    def current_year():
-        return date.today().year
+    def parse_week(args=None):
+        """Parse week number and return week and year.
 
-    @staticmethod
-    def parse_week(args):
-        """Parse week number and set week and year
-
-        Use weeknumber as it is if positive
-        if negative, get relative week from current one.
+        Use weeknumber as ISO-8601 week if positive.
+        If negative, get relative week from current one.
         """
-        if args.week < 0:
+        if not args:
+            week, year = Utils._parse_week(datetime.now())
+        elif args.week < 0:
             in_past = datetime.now() + timedelta(weeks=args.week)
-            week = in_past.strftime("%W")
-            week = int(week)
-            year = in_past.year
+            week, year = Utils._parse_week(in_past)
         else:
-            week = args.week
-            year = args.year
+            week, year = args.week, args.year
         return week, year
 
     @staticmethod
     def date_range_for_week(weeknumber, yearnumber):
-        year = yearnumber or date.today().year
-        week = '%d %d 1' % (year, weeknumber)
-        weekstart = datetime.strptime(week, "%Y %W %w")
-        weekstop = weekstart + timedelta(days=6, hours=23, minutes=59,
-                                         seconds=59)
+        weekstart = datetime.fromisocalendar(yearnumber, weeknumber, 1)
+        weekstop = weekstart + timedelta(days=6, hours=23, minutes=59, seconds=59)
         return weekstart, weekstop
 
     @staticmethod
@@ -200,14 +193,12 @@ def get_odoo_conf(config):
 
 
 if __name__ == '__main__':
+    current_week, current_year = Utils.parse_week()
     parser = argparse.ArgumentParser(description="gtimelog_exporter options")
 
-    parser.add_argument('-c', '--config',
-                        default=DEFAULT_CONFIG_PATH, type=str)
-    parser.add_argument('-w', '--week',
-                        default=Utils.current_weeknumber(), type=int)
-    parser.add_argument('-y', '--year',
-                        default=Utils.current_year(), type=int)
+    parser.add_argument('-c', '--config', default=DEFAULT_CONFIG_PATH, type=str)
+    parser.add_argument('-w', '--week', default=current_week, type=int)
+    parser.add_argument('-y', '--year', default=current_year, type=int)
     parser.add_argument('--no-interactive', action='store_true')
     parser.add_argument('--no-attendance', action='store_true')
     parser.add_argument('--submit', action='store_true')
