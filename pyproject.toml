@@ -1,0 +1,15 @@
+[project]
+name = "gtimelog2odoo"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "argparse>=1.4.0",
+    "configparser>=7.2.0",
+    "gtimelog>=0.12.0",
+    "odoorpc>=0.10.1",
+    "python-dateutil>=2.9.0.post0",
+    "requests>=2.33.1",
+    "tzlocal>=5.3.1",
+]

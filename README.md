@@ -89,3 +89,19 @@ configuration option:
 * Optimize logs aggregation
 * Better error management
 * Build a package
+
+
+# Install on Ubuntu 26
+
+Install following dependencies:
+
+```
+sudo apt install cmake
+sudo apt install systemd-dev
+sudo apt install pkgconf
+sudo apt install libcairo2-dev
+sudo apt install gir1.2-girepository-2.0
+sudo apt install libgirepository-2.0-dev
+```
+
+Run with `uv`
